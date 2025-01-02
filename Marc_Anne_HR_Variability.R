@@ -1695,6 +1695,15 @@ cor_matrix <- data.frame(cor_matrix)
 data.frame(cor_matrix[,1]) %>% bind_cols(data.frame(row.names(cor_matrix)))
 
 
+
+names(Marc_Anne_HR_Variability_MSA)
+
+
+
+
+
+
+# PCA
 Marc_Anne_HR_Variability_MSA <- Marc_Anne_HR_Variability_MSA %>% select(-UMSARS)
 
 
@@ -1735,3 +1744,54 @@ print("Correlations of PCs with external variable:")
 print(correlations)
 
 # -----------
+# See Delta PAS PAD over disease progression --------------
+Deltas_PAS_PAD <- fread("Deltas_PAS_PAD.txt")
+
+
+Marc_Anne_HR_Variability_MSA <- read_xlsx(path="Marc_Anne_HR_Variability_MSA.xlsx", trim_ws = TRUE)
+Marc_Anne_HR_Variability_MSA <- Marc_Anne_HR_Variability_MSA %>% mutate(cause=ifelse(cause=="Décès",1,0))
+
+# Convert the columns to Date format
+Marc_Anne_HR_Variability_MSA$Date_de_l_examen <- as.Date(Marc_Anne_HR_Variability_MSA$Date_de_l_examen)
+Marc_Anne_HR_Variability_MSA$date_ <- as.Date(Marc_Anne_HR_Variability_MSA$date_)
+
+# Calculate the difference in years
+Marc_Anne_HR_Variability_MSA$Followup_duration <- as.numeric(
+  difftime(Marc_Anne_HR_Variability_MSA$Date_de_l_examen, 
+           Marc_Anne_HR_Variability_MSA$date_, 
+           units = "days") / 30.5
+)
+
+# Extract the year from Date_de_l_examen
+Marc_Anne_HR_Variability_MSA$Year_de_l_examen <- as.numeric(format(as.Date(Marc_Anne_HR_Variability_MSA$Date_de_l_examen), "%Y"))
+
+# Ensure AMS__011___Année_d_apparition_1er_symptome_maladie is numeric
+Marc_Anne_HR_Variability_MSA$Year_1st_symptom <- as.numeric(Marc_Anne_HR_Variability_MSA$AMS__011___Année_d_apparition_1er_symptome_maladie)
+
+# Calculate the difference
+Marc_Anne_HR_Variability_MSA$Symptom_duration <- Marc_Anne_HR_Variability_MSA$Year_de_l_examen - Marc_Anne_HR_Variability_MSA$Year_1st_symptom
+
+Marc_Anne_HR_Variability_MSA <- Marc_Anne_HR_Variability_MSA %>% select(patid, Symptom_duration, `ms/mmHg`:Hurst, Score_UMSARS1, Score_UMSARS2)
+Marc_Anne_HR_Variability_MSA <- Marc_Anne_HR_Variability_MSA %>% drop_na()
+
+Marc_Anne_HR_Variability_MSA <- Marc_Anne_HR_Variability_MSA %>% mutate(UMSARS=Score_UMSARS1+Score_UMSARS2) %>%
+  select(-c(Score_UMSARS1, Score_UMSARS2))
+
+names(Marc_Anne_HR_Variability_MSA)
+
+Marc_Anne_HR_Variability_MSA <- Marc_Anne_HR_Variability_MSA %>% inner_join(Deltas_PAS_PAD) 
+
+cor(Marc_Anne_HR_Variability_MSA$Symptom_duration, Marc_Anne_HR_Variability_MSA$Delta_PAS)
+cor(Marc_Anne_HR_Variability_MSA$Symptom_duration, Marc_Anne_HR_Variability_MSA$Delta_PAD)
+
+
+
+Marc_Anne_HR_Variability_MSA <- Marc_Anne_HR_Variability_MSA %>%
+  mutate(across(where(is.numeric), scale))
+
+
+cor_matrix <- cor(Marc_Anne_HR_Variability_MSA %>% select(where(is.numeric)), method = "spearman")
+cor_matrix <- data.frame(cor_matrix)
+data.frame(cor_matrix[,1]) %>% bind_cols(data.frame(row.names(cor_matrix)))
+
+# -----------------
