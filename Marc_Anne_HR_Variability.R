@@ -1795,3 +1795,332 @@ cor_matrix <- data.frame(cor_matrix)
 data.frame(cor_matrix[,1]) %>% bind_cols(data.frame(row.names(cor_matrix)))
 
 # -----------------
+# Heart rate variability Compare Prob vs Poss and MSC vs MSP ------------------
+
+Marc_Anne_HR_Variability_MSA <- read_xlsx(path="Marc_Anne_HR_Variability_MSA.xlsx", trim_ws = TRUE)
+
+names(Marc_Anne_HR_Variability_MSA)
+
+
+Marc_Anne_HR_Variability_MSA <- Marc_Anne_HR_Variability_MSA %>% 
+  select(patid, `ms/mmHg`:Hurst,  `AMS__017_-__Diagnostic_AMS`)
+
+
+#Marc_Anne_HR_Variability_MSA <- Marc_Anne_HR_Variability_MSA %>%
+#  mutate(across(where(is.numeric), scale))
+
+Marc_Anne_HR_Variability_MSA <- Marc_Anne_HR_Variability_MSA %>% mutate(Dx=ifelse( grepl("Possible",`AMS__017_-__Diagnostic_AMS`), 0, 1))
+
+Marc_Anne_HR_Variability_MSA <- Marc_Anne_HR_Variability_MSA %>% select(-`AMS__017_-__Diagnostic_AMS`)
+
+Marc_Anne_HR_Variability_MSA <- Marc_Anne_HR_Variability_MSA %>% select(-patid)
+
+colnames(Marc_Anne_HR_Variability_MSA) = gsub("-", "_", colnames(Marc_Anne_HR_Variability_MSA))
+colnames(Marc_Anne_HR_Variability_MSA) = gsub("/", "_", colnames(Marc_Anne_HR_Variability_MSA))
+
+colnames(Marc_Anne_HR_Variability_MSA) = gsub("\\(", "_", colnames(Marc_Anne_HR_Variability_MSA))
+colnames(Marc_Anne_HR_Variability_MSA) = gsub("\\)", "_", colnames(Marc_Anne_HR_Variability_MSA))
+colnames(Marc_Anne_HR_Variability_MSA) = gsub("%", "perc", colnames(Marc_Anne_HR_Variability_MSA))
+colnames(Marc_Anne_HR_Variability_MSA) = gsub("²", "2", colnames(Marc_Anne_HR_Variability_MSA))
+colnames(Marc_Anne_HR_Variability_MSA) = gsub("1", "one", colnames(Marc_Anne_HR_Variability_MSA))
+colnames(Marc_Anne_HR_Variability_MSA) = gsub("2", "two", colnames(Marc_Anne_HR_Variability_MSA))
+
+
+
+library(randomForest)
+
+Marc_Anne_HR_Variability_MSA <- Marc_Anne_HR_Variability_MSA %>% drop_na()
+
+
+
+
+rf_model <- randomForest(as.factor(Dx) ~ ., data = Marc_Anne_HR_Variability_MSA, importance = TRUE)
+
+print(rf_model)
+
+# Get Feature Importance
+importance_values <- importance(rf_model)
+
+data.frame(importance_values) %>% arrange(-MeanDecreaseAccuracy )
+
+Marc_Anne_HR_Variability_MSA %>%
+  group_by(Dx) %>% summarise(mean=mean(Mean_RR__ms_))
+
+results <- Marc_Anne_HR_Variability_MSA %>%
+  group_by(Dx) %>%
+  summarise(across(everything(), mean, na.rm = TRUE)) 
+
+
+wilcox_results <- Marc_Anne_HR_Variability_MSA %>%
+  select(-Dx) %>%
+  map_df(~{
+    test <- wilcox.test(
+      .[Marc_Anne_HR_Variability_MSA$Dx == 0],
+      .[Marc_Anne_HR_Variability_MSA$Dx == 1]
+    )
+    tibble(statistic = test$statistic, p_value = test$p.value)
+  }, .id = "Feature")
+
+# Add feature names to results
+wilcox_results$Feature <- colnames(Marc_Anne_HR_Variability_MSA)[-51]
+
+# Display results
+data.frame(wilcox_results)
+
+
+library(glmnet)
+
+
+Marc_Anne_HR_Variability_MSA <- Marc_Anne_HR_Variability_MSA %>%
+  mutate(Dx = ifelse(Dx == 1, "MSA-C", "MSA-P"))
+
+
+Marc_Anne_HR_Variability_MSA %>%
+  ggplot(aes( VLF__mstwo_, colour=Dx, fill=Dx)) +
+  geom_density(alpha=0.5) +
+  theme_pubclean() +
+  scale_fill_manual(values=c("#0087fa", "#ff004f")) +
+  scale_colour_manual(values=c("#0087fa", "#ff004f")) +
+  ylab("Patient density")
+
+
+# Function to create density plots for each feature
+create_density_plot <- function(feature_name) {
+  ggplot(Marc_Anne_HR_Variability_MSA, aes_string(x = feature_name, colour = "Dx", fill = "Dx")) +
+    geom_density(alpha = 0.5) +
+    theme_pubclean() +
+    scale_fill_manual(values = c("#0087fa", "#ff004f")) +
+    scale_colour_manual(values = c("#0087fa", "#ff004f")) +
+    labs(y = "Patient density", title = feature_name)
+}
+
+names(Marc_Anne_HR_Variability_MSA)
+
+# Generate density plots for all columns except Dx
+feature_names <- colnames(Marc_Anne_HR_Variability_MSA)[-51]  # Exclude Dx
+
+plots <- map(feature_names, create_density_plot)
+
+
+
+
+install.packages("randomForest")
+install.packages("caret")
+install.packages("ROSE")  # for upsampling (if you prefer SMOTE or other techniques)
+
+
+library(randomForest)
+library(caret)
+library(ROSE)
+library(pROC)
+
+
+Marc_Anne_HR_Variability_MSA$Dx <- as.factor(Marc_Anne_HR_Variability_MSA$Dx)
+
+# Separate the features (all columns except the last one) and the target variable (Dx)
+features <- Marc_Anne_HR_Variability_MSA[, -ncol(Marc_Anne_HR_Variability_MSA)]
+target <- Marc_Anne_HR_Variability_MSA$Dx
+
+# Apply ROSE to upsample the smaller class
+set.seed(123)  # Set a random seed for reproducibility
+upsampled_data <- ROSE(Dx ~ ., data = Marc_Anne_HR_Variability_MSA, seed = 123)$data
+
+# Ensure the target variable is a factor after SMOTE
+upsampled_data$Dx <- as.factor(upsampled_data$Dx)
+
+# Create a random forest model with Leave-One-Out Cross-Validation (LOOCV)
+# We'll use caret's train function to handle LOOCV
+train_control <- trainControl(method = "LOOCV")
+
+# Random Forest Model
+rf_model <- train(Dx ~ ., data = upsampled_data, method = "rf", trControl = train_control)
+
+# Evaluate the model's performance
+print(rf_model)
+
+
+# Optionally, check feature importance
+importance <- randomForest(Dx ~ ., data = upsampled_data)
+print(importance)
+
+ignore <- rf_model$pred
+
+library(tidyverse)
+
+ignore %>% filter(mtry==26) %>%
+  group_by(pred, obs) %>% count() 
+
+upsampled_data %>% group_by(Dx) %>% count()
+
+# Get predicted probabilities for ROC curve (we need probabilities, not just class labels)
+rf_probabilities <- predict(rf_model, upsampled_data, type = "prob")
+
+# Calculate the ROC curve and AUC for the positive class (usually class '1' or the second class)
+roc_curve <- roc(upsampled_data$Dx, rf_probabilities[,2])  # Index 2 for the probability of the second class
+
+# Plot the ROC curve
+plot(roc_curve, main = "ROC Curve", col = "blue", lwd = 2)
+abline(a = 0, b = 1, col = "gray", lty = 2)  # Add diagonal line (random model)
+
+# Calculate and display AUC
+auc_value <- auc(roc_curve)
+cat("AUC: ", auc_value, "\n")
+
+
+
+
+# ------------------
+
+# Heart rate variability metrics and Systolic BP Delta ------------------
+
+Marc_Anne_HR_Variability_MSA <- read_xlsx(path="Marc_Anne_HR_Variability_MSA.xlsx", trim_ws = TRUE)
+
+Deltas_PAS_PAD <- fread("Deltas_PAS_PAD.txt")
+
+Marc_Anne_HR_Variability_MSA <- Marc_Anne_HR_Variability_MSA %>% left_join(Deltas_PAS_PAD)
+
+names(Marc_Anne_HR_Variability_MSA)
+
+Marc_Anne_HR_Variability_MSA <- Marc_Anne_HR_Variability_MSA %>% mutate(cause=ifelse(cause=="Décès",1,0))
+
+
+
+Marc_Anne_HR_Variability_MSA <- Marc_Anne_HR_Variability_MSA %>% 
+  select(patid, `ms/mmHg`:Hurst,  Delta_PAS)
+
+
+Marc_Anne_HR_Variability_MSA <- Marc_Anne_HR_Variability_MSA %>% drop_na()
+Marc_Anne_HR_Variability_MSA <- Marc_Anne_HR_Variability_MSA %>% select(-patid)
+
+colnames(Marc_Anne_HR_Variability_MSA) = gsub("-", "_", colnames(Marc_Anne_HR_Variability_MSA))
+colnames(Marc_Anne_HR_Variability_MSA) = gsub("/", "_", colnames(Marc_Anne_HR_Variability_MSA))
+colnames(Marc_Anne_HR_Variability_MSA) = gsub("\\(", "_", colnames(Marc_Anne_HR_Variability_MSA))
+colnames(Marc_Anne_HR_Variability_MSA) = gsub("\\)", "_", colnames(Marc_Anne_HR_Variability_MSA))
+colnames(Marc_Anne_HR_Variability_MSA) = gsub("%", "perc", colnames(Marc_Anne_HR_Variability_MSA))
+colnames(Marc_Anne_HR_Variability_MSA) = gsub("²", "2", colnames(Marc_Anne_HR_Variability_MSA))
+colnames(Marc_Anne_HR_Variability_MSA) = gsub("1", "one", colnames(Marc_Anne_HR_Variability_MSA))
+colnames(Marc_Anne_HR_Variability_MSA) = gsub("2", "two", colnames(Marc_Anne_HR_Variability_MSA))
+
+
+library(leaps)
+library(glmnet)
+library(car)
+
+
+fwrite(Marc_Anne_HR_Variability_MSA, "data_delta_pas.csv")
+
+
+# Ensure predictors are scaled
+Marc_Anne_HR_Variability_MSA <- Marc_Anne_HR_Variability_MSA %>%
+  mutate(across(where(is.numeric), scale))
+
+unique(Marc_Anne_HR_Variability_MSA$Delta_PAS)
+# Correlation matrix
+cor_matrix <- cor(Marc_Anne_HR_Variability_MSA %>% select(where(is.numeric)), method = "spearman")
+print(cor_matrix)
+
+data.frame(cor_matrix) %>% select(Delta_PAS)
+
+
+
+# Best Subset Selection
+set.seed(1)
+regit_full <- regsubsets(Delta_PAS ~ ., data = Marc_Anne_HR_Variability_MSA, nvmax = 50, really.big=T)
+reg_summary <- summary(regit_full)
+
+ignore <- data.frame(reg_summary$which)
+
+fwrite(ignore, "ignore.csv")
+
+
+Best_Subset_Predictors <- fread("Best_Subset_Preds_HR_DeltaPAS.csv")
+
+names(Best_Subset_Predictors)
+
+light_blue = rgb(0/255, 135/255, 250/255)  # Light blue: RGB(0, 135, 250)
+light_pink = rgb(255/255, 0/255, 79/255)   # Light pink: RGB(255, 0, 79)
+
+Best_Subset_Predictors %>% gather(Var, Pres, `ms/mmHg`:`Hurst`) %>%
+  mutate(Pres=ifelse(Pres==1, "Yes", "No")) %>%
+  rename("Predictor_Included"="Pres") %>%
+  mutate(Predictor_Included=as.factor(Predictor_Included)) %>%
+  ggplot(aes(x=N_vars , y=Var, fill = Predictor_Included)) + 
+  geom_tile(color = "snow", size = 0.1, show.legend = F) + 
+  scale_fill_manual( values= c("snow", light_pink) ) +
+  #scale_x_discrete(expand=c(0,0)) + 
+  scale_y_discrete(expand=c(0,0)) + 
+  coord_equal() + 
+  theme_minimal() +
+  # scale_x_continuous(breaks = seq(min(Best_Subset_Predictors$vars),max(Best_Subset_Predictors$vars),by=1)) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+  xlab("Number of Predictors") +ylab("Predictor Included (yes/no)")
+
+
+
+# Plot RSS, Adjusted R², Cp, and BIC
+
+# Define the colors for the alternating lines
+light_blue = rgb(0/255, 135/255, 250/255)  # Light blue: RGB(0, 135, 250)
+light_pink = rgb(255/255, 0/255, 79/255)   # Light pink: RGB(255, 0, 79)
+
+# Set up the plot layout with 2 rows and 2 columns
+par(mfrow = c(2, 2))  # Arrange plots in a grid
+
+# Plot RSS with alternating colors and thicker lines
+plot(reg_summary$rss, xlab = "Number of Variables", ylab = "RSS", type = "l", lwd = 3, col = light_pink)
+# # Plot Adjusted R² with alternating colors and thicker lines
+plot(reg_summary$adjr2, xlab = "Number of Variables", ylab = "Adjusted R²", type = "l", lwd = 3, col = light_blue)
+# # Plot Cp with alternating colors and thicker lines
+plot(reg_summary$cp, xlab = "Number of Variables", ylab = "Cp", type = "l", lwd = 3, col = light_blue)
+# # Plot BIC with alternating colors and thicker lines
+plot(reg_summary$bic, xlab = "Number of Variables", ylab = "BIC", type = "l", lwd = 3, col = light_pink)
+
+
+
+
+# Ensure predictors are scaled
+X <- model.matrix(Delta_PAS ~ ., data = Marc_Anne_HR_Variability_MSA)[, -1]  # Design matrix (exclude intercept)
+y <- Marc_Anne_HR_Variability_MSA$Delta_PAS  # Response variable
+
+# LASSO Regression (alpha = 1)
+set.seed(1)
+lasso_cv <- cv.glmnet(X, y, alpha = 1, standardize = TRUE, maxit = 1e6)
+
+# Best lambda
+lasso_lambda_min <- lasso_cv$lambda.min
+lasso_lambda_1se <- lasso_cv$lambda.1se
+
+# Plot LASSO cross-validation results
+plot(lasso_cv)
+title("LASSO Cross-Validation", line = 2.5)
+
+# Extract coefficients for the best lambda
+lasso_coeffs <- coef(lasso_cv, s = "lambda.min")
+print(lasso_coeffs)
+
+
+
+# Ridge Regression (alpha = 0)
+set.seed(1)
+ridge_cv <- cv.glmnet(X, y, alpha = 0, standardize = TRUE)
+
+# Best lambda
+ridge_lambda_min <- ridge_cv$lambda.min
+ridge_lambda_1se <- ridge_cv$lambda.1se
+
+# Plot Ridge cross-validation results
+plot(ridge_cv)
+title("Ridge Cross-Validation", line = 2.5)
+
+# Extract coefficients for the best lambda
+ridge_coeffs <- coef(ridge_cv, s = "lambda.min")
+print(ridge_coeffs)
+
+# Compare MSE
+lasso_mse <- min(lasso_cv$cvm)
+ridge_mse <- min(ridge_cv$cvm)
+print(paste("LASSO MSE:", lasso_mse))
+print(paste("Ridge MSE:", ridge_mse))
+
+
+# ------------------
