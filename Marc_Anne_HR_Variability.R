@@ -2124,3 +2124,50 @@ print(paste("Ridge MSE:", ridge_mse))
 
 
 # ------------------
+
+# plot regression fit Delta SBP ~ Each HR variability metric ---------
+Marc_Anne_HR_Variability_MSA <- read_xlsx(path="Marc_Anne_HR_Variability_MSA.xlsx", trim_ws = TRUE)
+
+Deltas_PAS_PAD <- fread("Deltas_PAS_PAD.txt")
+
+Marc_Anne_HR_Variability_MSA <- Marc_Anne_HR_Variability_MSA %>% left_join(Deltas_PAS_PAD)
+
+
+Marc_Anne_HR_Variability_MSA <- Marc_Anne_HR_Variability_MSA %>% 
+  select(patid, `ms/mmHg`:Hurst, Delta_PAS )
+
+Marc_Anne_HR_Variability_MSA <- Marc_Anne_HR_Variability_MSA %>% drop_na()
+Marc_Anne_HR_Variability_MSA <- Marc_Anne_HR_Variability_MSA %>% select(-patid)
+
+colnames(Marc_Anne_HR_Variability_MSA) = gsub("-", "_", colnames(Marc_Anne_HR_Variability_MSA))
+colnames(Marc_Anne_HR_Variability_MSA) = gsub("/", "_", colnames(Marc_Anne_HR_Variability_MSA))
+
+colnames(Marc_Anne_HR_Variability_MSA) = gsub("\\(", "_", colnames(Marc_Anne_HR_Variability_MSA))
+colnames(Marc_Anne_HR_Variability_MSA) = gsub("\\)", "_", colnames(Marc_Anne_HR_Variability_MSA))
+colnames(Marc_Anne_HR_Variability_MSA) = gsub("%", "perc", colnames(Marc_Anne_HR_Variability_MSA))
+colnames(Marc_Anne_HR_Variability_MSA) = gsub("²", "2", colnames(Marc_Anne_HR_Variability_MSA))
+colnames(Marc_Anne_HR_Variability_MSA) = gsub("1", "one", colnames(Marc_Anne_HR_Variability_MSA))
+colnames(Marc_Anne_HR_Variability_MSA) = gsub("2", "two", colnames(Marc_Anne_HR_Variability_MSA))
+
+names(Marc_Anne_HR_Variability_MSA)
+
+
+# 400 400
+
+create_density_plot <- function(feature_name) {
+  ggplot(Marc_Anne_HR_Variability_MSA, aes(x = !!sym(feature_name), y=Delta_PAS )) +
+    geom_jitter(alpha=0.6,colour="#0087fa", shape=1, stroke=2, size=0.8) +
+    geom_smooth(fill="#ff004f", colour="#ff004f", alpha=0.1) +
+    theme_light() +
+    labs(y = "SBP Delta", x=feature_name , title = feature_name)
+}
+
+names(Marc_Anne_HR_Variability_MSA)
+
+# Generate density plots for all columns except Dx
+feature_names <- colnames(Marc_Anne_HR_Variability_MSA)
+
+plots <- map(feature_names, create_density_plot)
+
+
+# ---------
