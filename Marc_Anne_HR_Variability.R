@@ -2450,6 +2450,7 @@ Marc_Anne_HR_Variability_MSA %>%
 
 
 
+
 # Ewing | Sudoscans and survival ---------
 
 Marc_Anne_HR_Variability_MSA <- read_xlsx(path="Marc_Anne_HR_Variability_MSA.xlsx", trim_ws = TRUE)
@@ -2703,4 +2704,65 @@ for (col in columns_to_compare) {
 
 # Print the correlation results
 print(correlation_results)
+
+
+library(survival)
+library(survminer)
+
+
+test_cox <- Ewing %>% select(Followup_duration, cause, Ewing_total_score) %>% drop_na()
+
+
+cox_model <- coxph(Surv(Followup_duration , cause) ~ Ewing_total_score, data = test_cox)
+summary(cox_model)
+
+
+# Generate survival curve for a range of predictor values
+new_data <- data.frame(Ewing_total_score = seq(min(test_cox$Ewing_total_score), max(test_cox$Ewing_total_score), length.out = 5))
+surv_fit <- survfit(cox_model, newdata = new_data)
+
+# 600 600
+# Plot the survival curves
+ggsurvplot(surv_fit, data = test_cox, 
+           conf.int = TRUE,  # Show confidence intervals
+           ggtheme = theme_minimal(), 
+           legend.title = "Predictor Value",
+           legend.labs = round(seq(min(test_cox$Ewing_total_score), 
+                                   max(test_cox$Ewing_total_score), length.out = 5), 2),
+           xlab = "Follow-up Time",
+           ylab = "Survival Probability",
+           palette = c("#4cc9f0", "#4361ee", "#3a0ca3", "#7209b7", "#f72585"))
+
+
+names(Sudoscan)
+test_cox <- Sudoscan %>% select(Followup_duration, cause, `sudoscan_-_conduction_moy_pieds_(µsiemens)`) %>% drop_na()
+
+names(test_cox)[3] <- "feet"
+
+
+cox_model <- coxph(Surv(Followup_duration , cause) ~ feet, data = test_cox)
+summary(cox_model)
+
+
+# Generate survival curve for a range of predictor values
+new_data <- data.frame(feet = seq(min(test_cox$feet), max(test_cox$feet), length.out = 10))
+surv_fit <- survfit(cox_model, newdata = new_data)
+
+# Generate 20 gradient colors
+gradient_colors <- colorRampPalette(c("#4cc9f0", "#4361ee", "#3a0ca3", "#7209b7", "#f72585"))(10)
+
+
+# 600 600
+# Plot the survival curves
+ggsurvplot(surv_fit, data = test_cox, 
+           conf.int = TRUE,  # Show confidence intervals
+           ggtheme = theme_minimal(), 
+           legend.title = "Average Feet Conduction [binned]",
+           legend = "none",
+           palette = gradient_colors ,
+           xlab = "Follow-up Time",
+           ylab = "Survival Probability")
+
+
+
 # ---------
