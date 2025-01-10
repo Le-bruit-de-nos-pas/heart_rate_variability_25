@@ -2449,6 +2449,7 @@ Marc_Anne_HR_Variability_MSA %>%
 # ------------------
 
 
+
 # Ewing | Sudoscans and survival ---------
 
 Marc_Anne_HR_Variability_MSA <- read_xlsx(path="Marc_Anne_HR_Variability_MSA.xlsx", trim_ws = TRUE)
@@ -2542,16 +2543,164 @@ names(Ewing)
 # TODO: Correlations for Ewing and Sudoscan with the 3 times features, dropping NA
 # TODO: Cox?
 
+# Ewing follow up
+
+target_column <- "Followup_duration"
+
+columns_to_compare <- c("Ewing_Valsalva_valeur_rapport_de_valsalva", "Ewing_respi_ample_valeur_(bpm)",
+                        "Ewing_rapport_30/15_valeur" , "Ewing_var_contract_iso_PAD_(_valeur_handgrip)",
+                        "Ewing_var_contract_iso_PAS","Ewing_var_orthost_tilt_PAS",
+                        "Ewing_var_orthost_tilt_PAD", "Ewing_var_orthost_stand_PAS",
+                        "Ewing_var_orthost_stand_PAD", "Ewing_Valsalva_score",
+                        "Ewing_respi_ample_score_(bpm)", "Ewing_rapport_30/15_score",
+                        "Ewing_var_contract_iso_score" , "Ewing_var_orthost_Tilt_score" ,
+                        "Ewing_total_score", "3-_Valsalva_-_diminution_PSA_systolique_phase_IIb_(mmHg)",
+                        "3-_Valsalva_-_augmentation_PSA_systolique_phase_IVb_(mmHg)")
+
+correlation_results <- list()
+
+for (col in columns_to_compare) {
+  # Calculate Spearman correlation while dropping NAs
+  correlation <- cor(Ewing[[target_column]], Ewing[[col]], method = "spearman", use = "complete.obs")
+  
+  # Store the result
+  correlation_results[[col]] <- correlation
+}
+
+# Print the correlation results
+print(correlation_results)
 
 
-cor_matrix <- cor(Ewing %>% select(where(is.numeric)), method = "spearman")
-data.frame(cor_matrix) %>% select(Followup_duration)
+# Sudoscan follow up
+
+target_column <- "Followup_duration"
+
+columns_to_compare <- c("sudoscan_-_conduction_main_droite_(µsiemens)", "sudoscan_-_conduction_main_gauche_(µsiemens)",
+                        "sudoscan_-_conduction_moy_mains_(µsiemens)" , "sudoscan_-_conduction_pied_droit_(µsiemens)",
+                        "sudoscan_-_conduction_pied_gauche_(µsiemens)","sudoscan_-_conduction_moy_pieds_(µsiemens)",
+                        "sudoscan_-_asymétrie_mains_(%)", "sudoscan_-_asymétrie_pieds_(%)",
+                        "calcul_risque_neuropathie_végétative_cardiaque_(%)_(_risque_eval)")
+
+correlation_results <- list()
+
+for (col in columns_to_compare) {
+  # Calculate Spearman correlation while dropping NAs
+  correlation <- cor(Sudoscan[[target_column]], Sudoscan[[col]], method = "spearman", use = "complete.obs")
+  
+  # Store the result
+  correlation_results[[col]] <- correlation
+}
+
+# Print the correlation results
+print(correlation_results)
 
 
-cor_matrix <- cor(Sudoscan %>% select(where(is.numeric)), method = "spearman")
-data.frame(cor_matrix) %>% select(Followup_duration)
 
-Ewing %>% group_by(cause) %>% count()
-Sudoscan %>% group_by(cause) %>% count()
 
+
+
+# Ewing symptom duration
+
+target_column <- "Year_1st_symptom"
+
+columns_to_compare <- c("Ewing_Valsalva_valeur_rapport_de_valsalva", "Ewing_respi_ample_valeur_(bpm)",
+                        "Ewing_rapport_30/15_valeur" , "Ewing_var_contract_iso_PAD_(_valeur_handgrip)",
+                        "Ewing_var_contract_iso_PAS","Ewing_var_orthost_tilt_PAS",
+                        "Ewing_var_orthost_tilt_PAD", "Ewing_var_orthost_stand_PAS",
+                        "Ewing_var_orthost_stand_PAD", "Ewing_Valsalva_score",
+                        "Ewing_respi_ample_score_(bpm)", "Ewing_rapport_30/15_score",
+                        "Ewing_var_contract_iso_score" , "Ewing_var_orthost_Tilt_score" ,
+                        "Ewing_total_score", "3-_Valsalva_-_diminution_PSA_systolique_phase_IIb_(mmHg)",
+                        "3-_Valsalva_-_augmentation_PSA_systolique_phase_IVb_(mmHg)")
+
+correlation_results <- list()
+
+for (col in columns_to_compare) {
+  # Calculate Spearman correlation while dropping NAs
+  correlation <- cor(Ewing[[target_column]], Ewing[[col]], method = "spearman", use = "complete.obs")
+  
+  # Store the result
+  correlation_results[[col]] <- correlation
+}
+
+# Print the correlation results
+print(correlation_results)
+
+
+# Sudoscan symptom duration
+
+target_column <- "Year_1st_symptom"
+
+columns_to_compare <- c("sudoscan_-_conduction_main_droite_(µsiemens)", "sudoscan_-_conduction_main_gauche_(µsiemens)",
+                        "sudoscan_-_conduction_moy_mains_(µsiemens)" , "sudoscan_-_conduction_pied_droit_(µsiemens)",
+                        "sudoscan_-_conduction_pied_gauche_(µsiemens)","sudoscan_-_conduction_moy_pieds_(µsiemens)",
+                        "sudoscan_-_asymétrie_mains_(%)", "sudoscan_-_asymétrie_pieds_(%)",
+                        "calcul_risque_neuropathie_végétative_cardiaque_(%)_(_risque_eval)")
+
+correlation_results <- list()
+
+for (col in columns_to_compare) {
+  # Calculate Spearman correlation while dropping NAs
+  correlation <- cor(Sudoscan[[target_column]], Sudoscan[[col]], method = "spearman", use = "complete.obs")
+  
+  # Store the result
+  correlation_results[[col]] <- correlation
+}
+
+# Print the correlation results
+print(correlation_results)
+
+
+
+
+# Ewing diagnosis duration
+
+target_column <- "Year_1st_dx"
+
+columns_to_compare <- c("Ewing_Valsalva_valeur_rapport_de_valsalva", "Ewing_respi_ample_valeur_(bpm)",
+                        "Ewing_rapport_30/15_valeur" , "Ewing_var_contract_iso_PAD_(_valeur_handgrip)",
+                        "Ewing_var_contract_iso_PAS","Ewing_var_orthost_tilt_PAS",
+                        "Ewing_var_orthost_tilt_PAD", "Ewing_var_orthost_stand_PAS",
+                        "Ewing_var_orthost_stand_PAD", "Ewing_Valsalva_score",
+                        "Ewing_respi_ample_score_(bpm)", "Ewing_rapport_30/15_score",
+                        "Ewing_var_contract_iso_score" , "Ewing_var_orthost_Tilt_score" ,
+                        "Ewing_total_score", "3-_Valsalva_-_diminution_PSA_systolique_phase_IIb_(mmHg)",
+                        "3-_Valsalva_-_augmentation_PSA_systolique_phase_IVb_(mmHg)")
+
+correlation_results <- list()
+
+for (col in columns_to_compare) {
+  # Calculate Spearman correlation while dropping NAs
+  correlation <- cor(Ewing[[target_column]], Ewing[[col]], method = "spearman", use = "complete.obs")
+  
+  # Store the result
+  correlation_results[[col]] <- correlation
+}
+
+# Print the correlation results
+print(correlation_results)
+
+
+# Sudoscan diagnosis duration
+
+target_column <- "Year_1st_dx"
+
+columns_to_compare <- c("sudoscan_-_conduction_main_droite_(µsiemens)", "sudoscan_-_conduction_main_gauche_(µsiemens)",
+                        "sudoscan_-_conduction_moy_mains_(µsiemens)" , "sudoscan_-_conduction_pied_droit_(µsiemens)",
+                        "sudoscan_-_conduction_pied_gauche_(µsiemens)","sudoscan_-_conduction_moy_pieds_(µsiemens)",
+                        "sudoscan_-_asymétrie_mains_(%)", "sudoscan_-_asymétrie_pieds_(%)",
+                        "calcul_risque_neuropathie_végétative_cardiaque_(%)_(_risque_eval)")
+
+correlation_results <- list()
+
+for (col in columns_to_compare) {
+  # Calculate Spearman correlation while dropping NAs
+  correlation <- cor(Sudoscan[[target_column]], Sudoscan[[col]], method = "spearman", use = "complete.obs")
+  
+  # Store the result
+  correlation_results[[col]] <- correlation
+}
+
+# Print the correlation results
+print(correlation_results)
 # ---------
