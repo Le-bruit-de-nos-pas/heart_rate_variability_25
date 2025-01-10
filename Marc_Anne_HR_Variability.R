@@ -207,7 +207,7 @@ results
 
 # ---------------
 
-# Sudoscans ------------------
+# Sudoscans summary ------------------
 
 
 Marc_Anne_HR_Variability_MSA <- read_xlsx(path="Marc_Anne_HR_Variability_MSA.xlsx", trim_ws = TRUE)
@@ -2172,7 +2172,7 @@ plots <- map(feature_names, create_density_plot)
 
 # ---------
 
-# Ewing ------------------
+# Ewing summary ------------------
 
 
 Marc_Anne_HR_Variability_MSA <- read_xlsx(path="Marc_Anne_HR_Variability_MSA.xlsx", trim_ws = TRUE)
@@ -2227,6 +2227,150 @@ for (var in variables) {
 # View the results
 results
 
+variables
+
+Marc_Anne_HR_Variability_MSA %>%
+  ggplot(aes( `Ewing_Valsalva_valeur_rapport_de_valsalva`)) +
+  geom_density(alpha=0.5,fill="#ff004f", colour="#ff004f") +
+  ggpubr::theme_pubclean() +
+  ylab("Patient density") +
+  xlab("Ewing Valsalva Ratio")
+
+
+
+Marc_Anne_HR_Variability_MSA %>%
+  ggplot(aes( `Ewing_respi_ample_valeur_(bpm)`)) +
+  geom_density(alpha=0.5,fill="#ff004f", colour="#ff004f") +
+  ggpubr::theme_pubclean() +
+  ylab("Patient density") +
+  xlab("Ewing respiratory amplitude (bpm)")
+
+
+Marc_Anne_HR_Variability_MSA %>%
+  ggplot(aes( `Ewing_rapport_30/15_valeur`)) +
+  geom_density(alpha=0.5,fill="#ff004f", colour="#ff004f") +
+  ggpubr::theme_pubclean() +
+  ylab("Patient density") +
+  xlab("Ewing 30/15 ratio")
+
+Marc_Anne_HR_Variability_MSA %>%
+  ggplot(aes( `Ewing_var_contract_iso_PAD_(_valeur_handgrip)`)) +
+  geom_density(alpha=0.5,fill="#ff004f", colour="#ff004f") +
+  ggpubr::theme_pubclean() +
+  ylab("Patient density") +
+  xlab("Ewing Iso DBP Handgrip")
+
+
+Marc_Anne_HR_Variability_MSA %>%
+  ggplot(aes( `Ewing_var_contract_iso_PAS`)) +
+  geom_density(alpha=0.5,fill="#ff004f", colour="#ff004f") +
+  ggpubr::theme_pubclean() +
+  ylab("Patient density") +
+  xlab("Ewing Iso SBP Handgrip")
+
+
+Marc_Anne_HR_Variability_MSA %>%
+  ggplot(aes( `Ewing_var_orthost_tilt_PAS`)) +
+  geom_density(alpha=0.5,fill="#ff004f", colour="#ff004f") +
+  ggpubr::theme_pubclean() +
+  ylab("Patient density") +
+  xlab("Ewing SBP Tilting Delta")
+
+
+Marc_Anne_HR_Variability_MSA %>%
+  ggplot(aes( `Ewing_var_orthost_tilt_PAD`)) +
+  geom_density(alpha=0.5,fill="#ff004f", colour="#ff004f") +
+  ggpubr::theme_pubclean() +
+  ylab("Patient density") +
+  xlab("Ewing DBP Tilting Delta")
+
+
+Marc_Anne_HR_Variability_MSA %>%
+  ggplot(aes( `Ewing_var_orthost_stand_PAS`)) +
+  geom_density(alpha=0.5,fill="#ff004f", colour="#ff004f") +
+  ggpubr::theme_pubclean() +
+  ylab("Patient density") +
+  xlab("Ewing Orthost stand SBP")
+
+
+
+Marc_Anne_HR_Variability_MSA %>%
+  ggplot(aes( `Ewing_var_orthost_stand_PAD`)) +
+  geom_density(alpha=0.5,fill="#ff004f", colour="#ff004f") +
+  ggpubr::theme_pubclean() +
+  ylab("Patient density") +
+  xlab("Ewing Orthost stand DBP")
+
+
+
+Marc_Anne_HR_Variability_MSA %>%
+  ggplot(aes( `Ewing_Valsalva_score`)) +
+  geom_density(alpha=0.5,fill="#ff004f", colour="#ff004f") +
+  ggpubr::theme_pubclean() +
+  ylab("Patient density") +
+  xlab("Ewing Valsalva Score")
+
+
+
+
+Marc_Anne_HR_Variability_MSA %>%
+  ggplot(aes( `Ewing_respi_ample_score_(bpm)`)) +
+  geom_density(alpha=0.5,fill="#ff004f", colour="#ff004f") +
+  ggpubr::theme_pubclean() +
+  ylab("Patient density") +
+  xlab("Ewing respiratory score (bpm)")
+
+
+
+Marc_Anne_HR_Variability_MSA %>%
+  ggplot(aes( `Ewing_rapport_30/15_score`)) +
+  geom_density(alpha=0.5,fill="#ff004f", colour="#ff004f") +
+  ggpubr::theme_pubclean() +
+  ylab("Patient density") +
+  xlab("Ewing 30/15")
+
+
+
+Marc_Anne_HR_Variability_MSA %>%
+  ggplot(aes( `Ewing_var_contract_iso_score`)) +
+  geom_density(alpha=0.5,fill="#ff004f", colour="#ff004f") +
+  ggpubr::theme_pubclean() +
+  ylab("Patient density") +
+  xlab("Ewing Iso Score")
+
+
+
+Marc_Anne_HR_Variability_MSA %>%
+  ggplot(aes( `Ewing_var_orthost_Tilt_score`)) +
+  geom_density(alpha=0.5,fill="#ff004f", colour="#ff004f") +
+  ggpubr::theme_pubclean() +
+  ylab("Patient density") +
+  xlab("Ewing Orthost Tilt")
+
+
+Marc_Anne_HR_Variability_MSA %>%
+  ggplot(aes( `Ewing_total_score`)) +
+  geom_density(alpha=0.5,fill="#ff004f", colour="#ff004f") +
+  ggpubr::theme_pubclean() +
+  ylab("Patient density") +
+  xlab("Ewing Total Score")
+
+
+Marc_Anne_HR_Variability_MSA %>%
+  ggplot(aes( `3-_Valsalva_-_diminution_PSA_systolique_phase_IIb_(mmHg)`)) +
+  geom_density(alpha=0.5,fill="#ff004f", colour="#ff004f") +
+  ggpubr::theme_pubclean() +
+  ylab("Patient density") +
+  xlab("Valsalva SBP Delta phase_IIb (mmHg)")
+
+
+Marc_Anne_HR_Variability_MSA %>%
+  ggplot(aes( `3-_Valsalva_-_augmentation_PSA_systolique_phase_IVb_(mmHg)`)) +
+  geom_density(alpha=0.5,fill="#ff004f", colour="#ff004f") +
+  ggpubr::theme_pubclean() +
+  ylab("Patient density") +
+  xlab("Valsalva SBP Delta phase_Ivb (mmHg)")
 
 
 # ------------------
+
