@@ -249,6 +249,80 @@ for (var in variables) {
 # View the results
 results
 
+variables
+
+Marc_Anne_HR_Variability_MSA %>%
+     ggplot(aes( `sudoscan_-_conduction_main_droite_(µsiemens)`)) +
+     geom_density(alpha=0.5,fill="#0087fa", colour="#0087fa") +
+     ggpubr::theme_pubclean() +
+     ylab("Patient density") +
+     xlab("Sudoscan Right Hand ESC (µsiemens)")
+
+Marc_Anne_HR_Variability_MSA %>%
+     ggplot(aes( `sudoscan_-_conduction_main_gauche_(µsiemens)`)) +
+     geom_density(alpha=0.5,fill="#0087fa", colour="#0087fa") +
+     ggpubr::theme_pubclean() +
+     ylab("Patient density") +
+     xlab("Sudoscan Left Hand ESC (µsiemens)")
+
+Marc_Anne_HR_Variability_MSA %>%
+     ggplot(aes( `sudoscan_-_conduction_moy_mains_(µsiemens)`)) +
+     geom_density(alpha=0.5,fill="#0087fa", colour="#0087fa") +
+     ggpubr::theme_pubclean() +
+     ylab("Patient density") +
+     xlab("Sudoscan Average Hand ESC (µsiemens)")
+
+Marc_Anne_HR_Variability_MSA %>%
+  ggplot(aes( `sudoscan_-_conduction_pied_droit_(µsiemens)`)) +
+  geom_density(alpha=0.5,fill="#0087fa", colour="#0087fa") +
+  ggpubr::theme_pubclean() +
+  ylab("Patient density") +
+  xlab("Sudoscan_ Right Foot ESC (µsiemens)")
+
+
+Marc_Anne_HR_Variability_MSA %>%
+  ggplot(aes( `sudoscan_-_conduction_pied_gauche_(µsiemens)`)) +
+  geom_density(alpha=0.5,fill="#0087fa", colour="#0087fa") +
+  ggpubr::theme_pubclean() +
+  ylab("Patient density") +
+  xlab("Sudoscan Left Foot ESC (µsiemens)")
+
+
+
+Marc_Anne_HR_Variability_MSA %>%
+  ggplot(aes( `sudoscan_-_conduction_moy_pieds_(µsiemens)`)) +
+  geom_density(alpha=0.5,fill="#0087fa", colour="#0087fa") +
+  ggpubr::theme_pubclean() +
+  ylab("Patient density") +
+  xlab("Sudoscan Average Feet ESC (µsiemens)")
+
+Marc_Anne_HR_Variability_MSA %>%
+  ggplot(aes( `sudoscan_-_asymétrie_mains_(%)`)) +
+  geom_density(alpha=0.5,fill="#0087fa", colour="#0087fa") +
+  ggpubr::theme_pubclean() +
+  ylab("Patient density") +
+  xlab("Sudoscan Hands Asymmetry (%)")
+
+
+
+
+Marc_Anne_HR_Variability_MSA %>%
+  ggplot(aes( `sudoscan_-_asymétrie_pieds_(%)`)) +
+  geom_density(alpha=0.5,fill="#0087fa", colour="#0087fa") +
+  ggpubr::theme_pubclean() +
+  ylab("Patient density") +
+  xlab("Sudoscan Feet Asymmetry (%)")
+
+
+
+Marc_Anne_HR_Variability_MSA %>%
+  ggplot(aes( `calcul_risque_neuropathie_végétative_cardiaque_(%)_(_risque_eval)`)) +
+  geom_density(alpha=0.5,fill="#0087fa", colour="#0087fa") +
+  ggpubr::theme_pubclean() +
+  ylab("Patient density") +
+  xlab("Cardiac autonomic neuropathy risk (%)")
+
+
 
 
 # ------------------
@@ -2374,3 +2448,110 @@ Marc_Anne_HR_Variability_MSA %>%
 
 # ------------------
 
+
+# Ewing | Sudoscans and survival ---------
+
+Marc_Anne_HR_Variability_MSA <- read_xlsx(path="Marc_Anne_HR_Variability_MSA.xlsx", trim_ws = TRUE)
+
+Marc_Anne_HR_Variability_MSA <- Marc_Anne_HR_Variability_MSA %>% 
+  select(patid, `sudoscan_(fait/non_fait)`:`calcul_risque_neuropathie_végétative_cardiaque_(%)_(_risque_eval)`)
+
+
+variables <- c("sudoscan_-_conduction_main_droite_(µsiemens)", "sudoscan_-_conduction_main_gauche_(µsiemens)",
+               "sudoscan_-_conduction_moy_mains_(µsiemens)" , "sudoscan_-_conduction_pied_droit_(µsiemens)",
+               "sudoscan_-_conduction_pied_gauche_(µsiemens)","sudoscan_-_conduction_moy_pieds_(µsiemens)",
+               "sudoscan_-_asymétrie_mains_(%)", "sudoscan_-_asymétrie_pieds_(%)",
+               "calcul_risque_neuropathie_végétative_cardiaque_(%)_(_risque_eval)")
+
+Sudoscan <- Marc_Anne_HR_Variability_MSA %>% select(patid, all_of(variables))
+Sudoscan <- Sudoscan %>% drop_na()
+
+
+
+
+Marc_Anne_HR_Variability_MSA <- read_xlsx(path="Marc_Anne_HR_Variability_MSA.xlsx", trim_ws = TRUE)
+
+Marc_Anne_HR_Variability_MSA <- Marc_Anne_HR_Variability_MSA %>% 
+  select(patid, `Ewing_Valsalva_valeur_rapport_de_valsalva`:`3-_Valsalva_-_augmentation_PSA_systolique_phase_IVb_(mmHg)`)
+
+variables <- c("Ewing_Valsalva_valeur_rapport_de_valsalva", "Ewing_respi_ample_valeur_(bpm)",
+               "Ewing_rapport_30/15_valeur" , "Ewing_var_contract_iso_PAD_(_valeur_handgrip)",
+               "Ewing_var_contract_iso_PAS","Ewing_var_orthost_tilt_PAS",
+               "Ewing_var_orthost_tilt_PAD", "Ewing_var_orthost_stand_PAS",
+               "Ewing_var_orthost_stand_PAD", "Ewing_Valsalva_score",
+               "Ewing_respi_ample_score_(bpm)", "Ewing_rapport_30/15_score",
+               "Ewing_var_contract_iso_score" , "Ewing_var_orthost_Tilt_score" ,
+               "Ewing_total_score", "3-_Valsalva_-_diminution_PSA_systolique_phase_IIb_(mmHg)",
+               "3-_Valsalva_-_augmentation_PSA_systolique_phase_IVb_(mmHg)")
+
+
+Ewing <- Marc_Anne_HR_Variability_MSA %>% select(patid, all_of(variables))
+Ewing <- Ewing %>% drop_na()
+
+
+
+Marc_Anne_HR_Variability_MSA <- read_xlsx(path="Marc_Anne_HR_Variability_MSA.xlsx", trim_ws = TRUE)
+Marc_Anne_HR_Variability_MSA <- Marc_Anne_HR_Variability_MSA %>% mutate(cause=ifelse(cause=="Décès",1,0))
+
+# Convert the columns to Date format
+Marc_Anne_HR_Variability_MSA$Date_de_l_examen <- as.Date(Marc_Anne_HR_Variability_MSA$Date_de_l_examen)
+Marc_Anne_HR_Variability_MSA$date_ <- as.Date(Marc_Anne_HR_Variability_MSA$date_)
+
+# Calculate the difference in years
+Marc_Anne_HR_Variability_MSA$Followup_duration <- as.numeric(
+  difftime(Marc_Anne_HR_Variability_MSA$Date_de_l_examen, 
+           Marc_Anne_HR_Variability_MSA$date_, 
+           units = "days") / 30.5
+)
+
+# Extract the year from Date_de_l_examen
+Marc_Anne_HR_Variability_MSA$Year_de_l_examen <- as.numeric(format(as.Date(Marc_Anne_HR_Variability_MSA$Date_de_l_examen), "%Y"))
+
+# Ensure AMS__011___Année_d_apparition_1er_symptome_maladie is numeric
+Marc_Anne_HR_Variability_MSA$Year_1st_symptom <- as.numeric(Marc_Anne_HR_Variability_MSA$AMS__011___Année_d_apparition_1er_symptome_maladie)
+
+# Ensure AMS__009_-__Année_diagnostic_AMS is numeric
+Marc_Anne_HR_Variability_MSA$Year_1st_dx <- as.numeric(Marc_Anne_HR_Variability_MSA$`AMS__009_-__Année_diagnostic_AMS`)
+
+
+# Calculate the difference
+Marc_Anne_HR_Variability_MSA$Year_1st_symptom <- Marc_Anne_HR_Variability_MSA$Year_de_l_examen - Marc_Anne_HR_Variability_MSA$Year_1st_symptom
+Marc_Anne_HR_Variability_MSA$Year_1st_dx <- Marc_Anne_HR_Variability_MSA$Year_de_l_examen - Marc_Anne_HR_Variability_MSA$Year_1st_dx
+
+
+Marc_Anne_HR_Variability_MSA <- Marc_Anne_HR_Variability_MSA %>% select(patid, Year_1st_dx,Year_1st_symptom, Followup_duration, cause)
+
+
+Marc_Anne_HR_Variability_MSA$Followup_duration <- -1* Marc_Anne_HR_Variability_MSA$Followup_duration
+
+
+Sudoscan <- Sudoscan %>% left_join(Marc_Anne_HR_Variability_MSA)
+Ewing <- Ewing %>% left_join(Marc_Anne_HR_Variability_MSA)
+
+Ewing <- Ewing %>% select(-patid)
+Sudoscan <- Sudoscan %>% select(-patid)
+
+Ewing[] <- lapply(Ewing, as.numeric)
+Sudoscan[] <- lapply(Sudoscan, as.numeric)
+
+Ewing <- Ewing %>%  mutate(cause=ifelse(is.na(cause),0,1))
+Sudoscan <- Sudoscan %>%  mutate(cause=ifelse(is.na(cause),0,1))
+
+names(Ewing)
+
+# TODO: Correlations for Ewing and Sudoscan with the 3 times features, dropping NA
+# TODO: Cox?
+
+
+
+cor_matrix <- cor(Ewing %>% select(where(is.numeric)), method = "spearman")
+data.frame(cor_matrix) %>% select(Followup_duration)
+
+
+cor_matrix <- cor(Sudoscan %>% select(where(is.numeric)), method = "spearman")
+data.frame(cor_matrix) %>% select(Followup_duration)
+
+Ewing %>% group_by(cause) %>% count()
+Sudoscan %>% group_by(cause) %>% count()
+
+# ---------
