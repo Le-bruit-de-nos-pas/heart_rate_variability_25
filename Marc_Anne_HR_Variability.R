@@ -2171,3 +2171,62 @@ plots <- map(feature_names, create_density_plot)
 
 
 # ---------
+
+# Ewing ------------------
+
+
+Marc_Anne_HR_Variability_MSA <- read_xlsx(path="Marc_Anne_HR_Variability_MSA.xlsx", trim_ws = TRUE)
+
+
+names(Marc_Anne_HR_Variability_MSA)
+
+Marc_Anne_HR_Variability_MSA <- Marc_Anne_HR_Variability_MSA %>% 
+  select(patid, `Ewing_Valsalva_valeur_rapport_de_valsalva`:`3-_Valsalva_-_augmentation_PSA_systolique_phase_IVb_(mmHg)`)
+
+names(Marc_Anne_HR_Variability_MSA)
+
+
+
+variables <- c("Ewing_Valsalva_valeur_rapport_de_valsalva", "Ewing_respi_ample_valeur_(bpm)",
+               "Ewing_rapport_30/15_valeur" , "Ewing_var_contract_iso_PAD_(_valeur_handgrip)",
+               "Ewing_var_contract_iso_PAS","Ewing_var_orthost_tilt_PAS",
+               "Ewing_var_orthost_tilt_PAD", "Ewing_var_orthost_stand_PAS",
+               "Ewing_var_orthost_stand_PAD", "Ewing_Valsalva_score",
+               "Ewing_respi_ample_score_(bpm)", "Ewing_rapport_30/15_score",
+               "Ewing_var_contract_iso_score" , "Ewing_var_orthost_Tilt_score" ,
+               "Ewing_total_score", "3-_Valsalva_-_diminution_PSA_systolique_phase_IIb_(mmHg)",
+               "3-_Valsalva_-_augmentation_PSA_systolique_phase_IVb_(mmHg)")
+
+# Initialize an empty list to store the results
+results <- list()
+
+
+
+Marc_Anne_HR_Variability_MSA <-  Marc_Anne_HR_Variability_MSA %>% select(-patid)
+
+
+Marc_Anne_HR_Variability_MSA[] <- lapply(Marc_Anne_HR_Variability_MSA, as.numeric)
+
+# Loop through the variables
+for (var in variables) {
+  # Calculate summary statistics for the current variable
+  print(var)
+  print("____________________________________________________________")
+  stats <- list(
+    mean = mean(Marc_Anne_HR_Variability_MSA[[var]], na.rm = TRUE),
+    sd = sd(Marc_Anne_HR_Variability_MSA[[var]], na.rm = TRUE),
+    median = median(Marc_Anne_HR_Variability_MSA[[var]], na.rm = TRUE),
+    quantile_25 = quantile(Marc_Anne_HR_Variability_MSA[[var]], 0.25, na.rm = TRUE),
+    quantile_75 = quantile(Marc_Anne_HR_Variability_MSA[[var]], 0.75, na.rm = TRUE)
+  )
+  
+  # Store the results in the list with the variable name as the key
+  results[[var]] <- stats
+}
+
+# View the results
+results
+
+
+
+# ------------------
