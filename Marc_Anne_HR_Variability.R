@@ -416,7 +416,6 @@ Marc_Anne_HR_Variability_MSA <- Marc_Anne_HR_Variability_MSA %>% left_join(Delta
 
 Marc_Anne_HR_Variability_MSA <- Marc_Anne_HR_Variability_MSA %>% 
   select(patid, `ms/mmHg`:Hurst,  Score_UMSARS1, Score_UMSARS2) %>%
-  mutate(UMSARS=Score_UMSARS1+Score_UMSARS2) %>%
   select(-c(Score_UMSARS1, Score_UMSARS2))
 
 
@@ -3735,3 +3734,1144 @@ plot(reg_summary$cp, xlab = "Number of Variables", ylab = "Cp", type = "l", lwd 
 plot(reg_summary$bic, xlab = "Number of Variables", ylab = "BIC", type = "l", lwd = 3, col = light_pink)
 
 # ------
+
+# Which Ewing variables are most important at UMSARS or Delta SBP --------
+
+Marc_Anne_HR_Variability_MSA <- read_xlsx(path="Marc_Anne_HR_Variability_MSA.xlsx", trim_ws = TRUE)
+
+Marc_Anne_HR_Variability_MSA <- Marc_Anne_HR_Variability_MSA %>% 
+  mutate(UMSARS=Score_UMSARS1+Score_UMSARS2) %>%
+  select(-c(Score_UMSARS1, Score_UMSARS2))%>%
+  select(patid, UMSARS, `Ewing_Valsalva_valeur_rapport_de_valsalva`:`3-_Valsalva_-_augmentation_PSA_systolique_phase_IVb_(mmHg)`)
+
+variables <- c("UMSARS", "Ewing_Valsalva_valeur_rapport_de_valsalva", "Ewing_respi_ample_valeur_(bpm)",
+               "Ewing_rapport_30/15_valeur" , "Ewing_var_contract_iso_PAD_(_valeur_handgrip)",
+               "Ewing_var_contract_iso_PAS","Ewing_var_orthost_tilt_PAS",
+               "Ewing_var_orthost_tilt_PAD", "Ewing_var_orthost_stand_PAS",
+               "Ewing_var_orthost_stand_PAD", "Ewing_Valsalva_score",
+               "Ewing_respi_ample_score_(bpm)", "Ewing_rapport_30/15_score",
+               "Ewing_var_contract_iso_score" , "Ewing_var_orthost_Tilt_score" ,
+               "Ewing_total_score", "3-_Valsalva_-_diminution_PSA_systolique_phase_IIb_(mmHg)",
+               "3-_Valsalva_-_augmentation_PSA_systolique_phase_IVb_(mmHg)")
+
+
+Ewing <- Marc_Anne_HR_Variability_MSA %>% select(patid, all_of(variables))
+Ewing <- Ewing %>% drop_na()
+
+Ewing <- Ewing %>% select(-patid)
+
+Ewing[] <- lapply(Ewing, as.numeric)
+
+
+colnames(Ewing) = gsub("-", "_", colnames(Ewing))
+colnames(Ewing) = gsub("/", "_", colnames(Ewing))
+colnames(Ewing) = gsub("\\(", "_", colnames(Ewing))
+colnames(Ewing) = gsub("\\)", "_", colnames(Ewing))
+colnames(Ewing) = gsub("%", "perc", colnames(Ewing))
+colnames(Ewing) = gsub("²", "2", colnames(Ewing))
+colnames(Ewing) = gsub("1", "one", colnames(Ewing))
+colnames(Ewing) = gsub("2", "two", colnames(Ewing))
+
+
+library(glmnet)
+library(caret)
+
+
+Ewing <- Ewing %>% drop_na()
+
+Ewing[, 2:18] <- scale(Ewing[, 2:18])
+
+UMSARS <- Ewing$UMSARS
+features <- as.matrix(Ewing[, 2:18])
+UMSARS <- data.frame(UMSARS)
+
+UMSARS <- as.matrix(UMSARS)
+
+typeof(UMSARS)
+typeof(features)
+
+
+# Fit LASSO model (alpha = 1 for LASSO)
+lasso_model <- cv.glmnet(features, UMSARS, alpha = 1)
+
+
+# Get the lambda that minimizes the cross-validation error for LASSO
+lasso_lambda_min <- lasso_model$lambda.min
+cat("Optimal lambda for LASSO: ", lasso_lambda_min, "\n")
+
+# Get the coefficients for the LASSO model at lambda.min
+lasso_coefficients <- coef(lasso_model, s = "lambda.min")
+cat("LASSO Coefficients:\n")
+print(lasso_coefficients)
+
+
+#                                                                     s1
+# (Intercept)                                                46.66666667
+# Ewing_Valsalva_valeur_rapport_de_valsalva                  -1.43327016
+# Ewing_respi_ample_valeur__bpm_                             -0.87259736
+# Ewing_rapport_30_one5_valeur                                .         
+# Ewing_var_contract_iso_PAD___valeur_handgrip_               .         
+# Ewing_var_contract_iso_PAS                                  .         
+# Ewing_var_orthost_tilt_PAS                                  .         
+# Ewing_var_orthost_tilt_PAD                                  2.38254476
+# Ewing_var_orthost_stand_PAS                                 .         
+# Ewing_var_orthost_stand_PAD                                 .         
+# Ewing_Valsalva_score                                        0.01181479
+# Ewing_respi_ample_score__bpm_                               .         
+# Ewing_rapport_30_one5_score                                 .         
+# Ewing_var_contract_iso_score                                1.52087360
+# Ewing_var_orthost_Tilt_score                                .         
+# Ewing_total_score                                           .         
+# 3__Valsalva___diminution_PSA_systolique_phase_IIb__mmHg_    0.21887110
+# 3__Valsalva___augmentation_PSA_systolique_phase_IVb__mmHg_  .    
+
+
+
+
+# Fit Ridge model (alpha = 0 for Ridge)
+ridge_model <- cv.glmnet(features, UMSARS, alpha = 0)
+
+# Get the lambda that minimizes the cross-validation error for Ridge
+ridge_lambda_min <- ridge_model$lambda.min
+cat("Optimal lambda for Ridge: ", ridge_lambda_min, "\n")
+
+# Get the coefficients for the Ridge model at lambda.min
+ridge_coefficients <- coef(ridge_model, s = "lambda.min")
+cat("Ridge Coefficients:\n")
+print(ridge_coefficients)
+
+
+# Ewing_Valsalva_valeur_rapport_de_valsalva                  -0.69977835
+# Ewing_respi_ample_valeur__bpm_                             -0.65808911
+# Ewing_rapport_30_one5_valeur                               -0.09087685
+# Ewing_var_contract_iso_PAD___valeur_handgrip_              -0.39512869
+# Ewing_var_contract_iso_PAS                                 -0.19195535
+# Ewing_var_orthost_tilt_PAS                                  0.47193149
+# Ewing_var_orthost_tilt_PAD                                  0.89976222
+# Ewing_var_orthost_stand_PAS                                 0.26209910
+# Ewing_var_orthost_stand_PAD                                 0.53441385
+# Ewing_Valsalva_score                                        0.46345088
+# Ewing_respi_ample_score__bpm_                              -0.03047508
+# Ewing_rapport_30_one5_score                                -0.19358771
+# Ewing_var_contract_iso_score                                0.69869124
+# Ewing_var_orthost_Tilt_score                                0.20349544
+# Ewing_total_score                                           0.37071569
+# 3__Valsalva___diminution_PSA_systolique_phase_IIb__mmHg_    0.49301967
+# 3__Valsalva___augmentation_PSA_systolique_phase_IVb__mmHg_  0.03359585
+
+                                                                     
+                                                                     
+ignore <- data.frame(features) %>% bind_cols(data.frame(UMSARS))
+
+
+dim(ignore)
+
+set.seed(1)
+regit_full <- leaps::regsubsets(UMSARS ~ . , data=ignore, nvmax = 18, really.big=T)
+reg_summary <- summary(regit_full)
+
+ignore <- data.frame(reg_summary$which)
+
+fwrite(ignore, "ignore_Ewing.csv")
+
+names(ignore)
+
+
+Best_Subset_Predictors <- fread("ignore_Ewing.csv")
+
+names(Best_Subset_Predictors)
+
+light_blue = rgb(0/255, 135/255, 250/255)  # Light blue: RGB(0, 135, 250)
+light_pink = rgb(255/255, 0/255, 79/255)   # Light pink: RGB(255, 0, 79)
+
+names(Best_Subset_Predictors)
+
+Best_Subset_Predictors %>% gather(Var, Pres, `Ewing Valsalva Ratio`:`Valsalva SBP Delta phase IVb (mmHg)`) %>%
+  mutate(Pres=ifelse(Pres==1, "Yes", "No")) %>%
+  rename("Predictor_Included"="Pres") %>%
+  mutate(Predictor_Included=as.factor(Predictor_Included)) %>%
+  ggplot(aes(x=vars , y=Var, fill = Predictor_Included)) + 
+  geom_tile(color = "snow", size = 0.1, show.legend = F) + 
+  scale_fill_manual( values= c("snow", light_pink) ) +
+  #scale_x_discrete(expand=c(0,0)) + 
+  scale_y_discrete(expand=c(0,0)) + 
+  coord_equal() + 
+  theme_minimal() +
+  # scale_x_continuous(breaks = seq(min(Best_Subset_Predictors$vars),max(Best_Subset_Predictors$vars),by=1)) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+  xlab("Number of Predictors") +ylab("Predictor Included (yes/no)")
+
+
+
+
+# Plot RSS, Adjusted R², Cp, and BIC
+
+# Define the colors for the alternating lines
+light_blue = rgb(0/255, 135/255, 250/255)  # Light blue: RGB(0, 135, 250)
+light_pink = rgb(255/255, 0/255, 79/255)   # Light pink: RGB(255, 0, 79)
+
+# Set up the plot layout with 2 rows and 2 columns
+par(mfrow = c(2, 2))  # Arrange plots in a grid
+
+# Plot RSS with alternating colors and thicker lines
+plot(reg_summary$rss, xlab = "Number of Variables", ylab = "RSS", type = "l", lwd = 3, col = light_pink)
+# # Plot Adjusted R² with alternating colors and thicker lines
+plot(reg_summary$adjr2, xlab = "Number of Variables", ylab = "Adjusted R²", type = "l", lwd = 3, col = light_blue)
+# # Plot Cp with alternating colors and thicker lines
+plot(reg_summary$cp, xlab = "Number of Variables", ylab = "Cp", type = "l", lwd = 3, col = light_blue)
+# # Plot BIC with alternating colors and thicker lines
+plot(reg_summary$bic, xlab = "Number of Variables", ylab = "BIC", type = "l", lwd = 3, col = light_pink)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Marc_Anne_HR_Variability_MSA <- read_xlsx(path="Marc_Anne_HR_Variability_MSA.xlsx", trim_ws = TRUE)
+
+Marc_Anne_HR_Variability_MSA <- Marc_Anne_HR_Variability_MSA %>% 
+  select(patid, `Ewing_Valsalva_valeur_rapport_de_valsalva`:`3-_Valsalva_-_augmentation_PSA_systolique_phase_IVb_(mmHg)`)
+
+variables <- c( "Ewing_Valsalva_valeur_rapport_de_valsalva", "Ewing_respi_ample_valeur_(bpm)",
+               "Ewing_rapport_30/15_valeur" , "Ewing_var_contract_iso_PAD_(_valeur_handgrip)",
+               "Ewing_var_contract_iso_PAS","Ewing_var_orthost_tilt_PAS",
+               "Ewing_var_orthost_tilt_PAD", "Ewing_var_orthost_stand_PAS",
+               "Ewing_var_orthost_stand_PAD", "Ewing_Valsalva_score",
+               "Ewing_respi_ample_score_(bpm)", "Ewing_rapport_30/15_score",
+               "Ewing_var_contract_iso_score" , "Ewing_var_orthost_Tilt_score" ,
+               "Ewing_total_score", "3-_Valsalva_-_diminution_PSA_systolique_phase_IIb_(mmHg)",
+               "3-_Valsalva_-_augmentation_PSA_systolique_phase_IVb_(mmHg)")
+
+
+Ewing <- Marc_Anne_HR_Variability_MSA %>% select(patid, all_of(variables))
+Ewing <- Ewing %>% drop_na()
+
+Deltas_PAS_PAD <- fread("Deltas_PAS_PAD.txt")
+
+Deltas_PAS_PAD <- Deltas_PAS_PAD %>% select(patid, Delta_PAS ) 
+
+Ewing <- Ewing %>% left_join(Deltas_PAS_PAD) %>% select(-patid)
+
+Ewing[] <- lapply(Ewing, as.numeric)
+
+
+colnames(Ewing) = gsub("-", "_", colnames(Ewing))
+colnames(Ewing) = gsub("/", "_", colnames(Ewing))
+colnames(Ewing) = gsub("\\(", "_", colnames(Ewing))
+colnames(Ewing) = gsub("\\)", "_", colnames(Ewing))
+colnames(Ewing) = gsub("%", "perc", colnames(Ewing))
+colnames(Ewing) = gsub("²", "2", colnames(Ewing))
+colnames(Ewing) = gsub("1", "one", colnames(Ewing))
+colnames(Ewing) = gsub("2", "two", colnames(Ewing))
+
+
+library(glmnet)
+library(caret)
+
+
+Ewing <- Ewing %>% drop_na()
+
+Ewing[, 1:17] <- scale(Ewing[, 1:17])
+
+Delta_PAS <- Ewing$Delta_PAS
+features <- as.matrix(Ewing[, 1:17])
+Delta_PAS <- data.frame(Delta_PAS)
+
+Delta_PAS <- as.matrix(Delta_PAS)
+
+typeof(Delta_PAS)
+typeof(features)
+
+
+# Fit LASSO model (alpha = 1 for LASSO)
+lasso_model <- cv.glmnet(features, Delta_PAS, alpha = 1)
+
+
+# Get the lambda that minimizes the cross-validation error for LASSO
+lasso_lambda_min <- lasso_model$lambda.min
+cat("Optimal lambda for LASSO: ", lasso_lambda_min, "\n")
+
+# Get the coefficients for the LASSO model at lambda.min
+lasso_coefficients <- coef(lasso_model, s = "lambda.min")
+cat("LASSO Coefficients:\n")
+print(lasso_coefficients)
+
+
+# Ewing_Valsalva_valeur_rapport_de_valsalva                   .       
+# Ewing_respi_ample_valeur__bpm_                              .       
+# Ewing_rapport_30_one5_valeur                                .       
+# Ewing_var_contract_iso_PAD___valeur_handgrip_               .       
+# Ewing_var_contract_iso_PAS                                  .       
+# Ewing_var_orthost_tilt_PAS                                 -4.758417
+# Ewing_var_orthost_tilt_PAD                                 -3.864446
+# Ewing_var_orthost_stand_PAS                                -5.754354
+# Ewing_var_orthost_stand_PAD                                -1.017500
+# Ewing_Valsalva_score                                        .       
+# Ewing_respi_ample_score__bpm_                               .       
+# Ewing_rapport_30_one5_score                                 .       
+# Ewing_var_contract_iso_score                                .       
+# Ewing_var_orthost_Tilt_score                                .       
+# Ewing_total_score                                           .       
+# 3__Valsalva___diminution_PSA_systolique_phase_IIb__mmHg_    .       
+# 3__Valsalva___augmentation_PSA_systolique_phase_IVb__mmHg_  .    
+
+
+
+
+# Fit Ridge model (alpha = 0 for Ridge)
+ridge_model <- cv.glmnet(features, Delta_PAS, alpha = 0)
+
+# Get the lambda that minimizes the cross-validation error for Ridge
+ridge_lambda_min <- ridge_model$lambda.min
+cat("Optimal lambda for Ridge: ", ridge_lambda_min, "\n")
+
+# Get the coefficients for the Ridge model at lambda.min
+ridge_coefficients <- coef(ridge_model, s = "lambda.min")
+cat("Ridge Coefficients:\n")
+print(ridge_coefficients)
+
+
+# Ewing_Valsalva_valeur_rapport_de_valsalva                   0.4264266
+# Ewing_respi_ample_valeur__bpm_                             -0.4007766
+# Ewing_rapport_30_one5_valeur                               -0.5831039
+# Ewing_var_contract_iso_PAD___valeur_handgrip_              -0.5080867
+# Ewing_var_contract_iso_PAS                                 -0.2639428
+# Ewing_var_orthost_tilt_PAS                                 -3.5702967
+# Ewing_var_orthost_tilt_PAD                                 -3.1347524
+# Ewing_var_orthost_stand_PAS                                -3.4697259
+# Ewing_var_orthost_stand_PAD                                -2.4945128
+# Ewing_Valsalva_score                                        0.1879513
+# Ewing_respi_ample_score__bpm_                               0.1059393
+# Ewing_rapport_30_one5_score                                 0.4200806
+# Ewing_var_contract_iso_score                               -0.3213518
+# Ewing_var_orthost_Tilt_score                                0.7919649
+# Ewing_total_score                                           0.4054948
+# 3__Valsalva___diminution_PSA_systolique_phase_IIb__mmHg_   -0.8158174
+# 3__Valsalva___augmentation_PSA_systolique_phase_IVb__mmHg_ -1.1020252
+
+                                                                     
+                                                                     
+ignore <- data.frame(features) %>% bind_cols(data.frame(Delta_PAS))
+
+
+dim(ignore)
+
+set.seed(1)
+regit_full <- leaps::regsubsets(Delta_PAS ~ . , data=ignore, nvmax = 18, really.big=T)
+reg_summary <- summary(regit_full)
+
+ignore <- data.frame(reg_summary$which)
+
+fwrite(ignore, "ignore_Ewing_deltas.csv")
+
+names(ignore)
+
+
+Best_Subset_Predictors <- fread("ignore_Ewing_deltas.csv")
+
+names(Best_Subset_Predictors)
+
+light_blue = rgb(0/255, 135/255, 250/255)  # Light blue: RGB(0, 135, 250)
+light_pink = rgb(255/255, 0/255, 79/255)   # Light pink: RGB(255, 0, 79)
+
+names(Best_Subset_Predictors)
+
+Best_Subset_Predictors %>% gather(Var, Pres, `Ewing Valsalva Ratio`:`Valsalva SBP Delta phase IVb (mmHg)`) %>%
+  mutate(Pres=ifelse(Pres==1, "Yes", "No")) %>%
+  rename("Predictor_Included"="Pres") %>%
+  mutate(Predictor_Included=as.factor(Predictor_Included)) %>%
+  ggplot(aes(x=vars , y=Var, fill = Predictor_Included)) + 
+  geom_tile(color = "snow", size = 0.1, show.legend = F) + 
+  scale_fill_manual( values= c("snow", light_pink) ) +
+  #scale_x_discrete(expand=c(0,0)) + 
+  scale_y_discrete(expand=c(0,0)) + 
+  coord_equal() + 
+  theme_minimal() +
+  # scale_x_continuous(breaks = seq(min(Best_Subset_Predictors$vars),max(Best_Subset_Predictors$vars),by=1)) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+  xlab("Number of Predictors") +ylab("Predictor Included (yes/no)")
+
+
+
+
+# Plot RSS, Adjusted R², Cp, and BIC
+
+# Define the colors for the alternating lines
+light_blue = rgb(0/255, 135/255, 250/255)  # Light blue: RGB(0, 135, 250)
+light_pink = rgb(255/255, 0/255, 79/255)   # Light pink: RGB(255, 0, 79)
+
+# Set up the plot layout with 2 rows and 2 columns
+par(mfrow = c(2, 2))  # Arrange plots in a grid
+
+# Plot RSS with alternating colors and thicker lines
+plot(reg_summary$rss, xlab = "Number of Variables", ylab = "RSS", type = "l", lwd = 3, col = light_pink)
+# # Plot Adjusted R² with alternating colors and thicker lines
+plot(reg_summary$adjr2, xlab = "Number of Variables", ylab = "Adjusted R²", type = "l", lwd = 3, col = light_blue)
+# # Plot Cp with alternating colors and thicker lines
+plot(reg_summary$cp, xlab = "Number of Variables", ylab = "Cp", type = "l", lwd = 3, col = light_blue)
+# # Plot BIC with alternating colors and thicker lines
+plot(reg_summary$bic, xlab = "Number of Variables", ylab = "BIC", type = "l", lwd = 3, col = light_pink)
+
+
+
+
+
+
+
+
+
+
+
+
+# ------
+
+# Ewing forest plots ---------
+
+Marc_Anne_HR_Variability_MSA <- read_xlsx(path="Marc_Anne_HR_Variability_MSA.xlsx", trim_ws = TRUE)
+
+Marc_Anne_HR_Variability_MSA <- Marc_Anne_HR_Variability_MSA %>% 
+  select(patid, `Ewing_Valsalva_valeur_rapport_de_valsalva`:`3-_Valsalva_-_augmentation_PSA_systolique_phase_IVb_(mmHg)`)
+
+variables <- c("Ewing_Valsalva_valeur_rapport_de_valsalva", "Ewing_respi_ample_valeur_(bpm)",
+               "Ewing_rapport_30/15_valeur" , "Ewing_var_contract_iso_PAD_(_valeur_handgrip)",
+               "Ewing_var_contract_iso_PAS","Ewing_var_orthost_tilt_PAS",
+               "Ewing_var_orthost_tilt_PAD", "Ewing_var_orthost_stand_PAS",
+               "Ewing_var_orthost_stand_PAD", "Ewing_Valsalva_score",
+               "Ewing_respi_ample_score_(bpm)", "Ewing_rapport_30/15_score",
+               "Ewing_var_contract_iso_score" , "Ewing_var_orthost_Tilt_score" ,
+               "Ewing_total_score", "3-_Valsalva_-_diminution_PSA_systolique_phase_IIb_(mmHg)",
+               "3-_Valsalva_-_augmentation_PSA_systolique_phase_IVb_(mmHg)")
+
+
+Ewing <- Marc_Anne_HR_Variability_MSA %>% select(patid, all_of(variables))
+Ewing <- Ewing %>% drop_na()
+
+
+
+Marc_Anne_HR_Variability_MSA <- read_xlsx(path="Marc_Anne_HR_Variability_MSA.xlsx", trim_ws = TRUE)
+Marc_Anne_HR_Variability_MSA <- Marc_Anne_HR_Variability_MSA %>% mutate(cause=ifelse(cause=="Décès",1,0))
+
+# Convert the columns to Date format
+Marc_Anne_HR_Variability_MSA$Date_de_l_examen <- as.Date(Marc_Anne_HR_Variability_MSA$Date_de_l_examen)
+Marc_Anne_HR_Variability_MSA$date_ <- as.Date(Marc_Anne_HR_Variability_MSA$date_)
+
+# Calculate the difference in years
+Marc_Anne_HR_Variability_MSA$Followup_duration <- as.numeric(
+  difftime(Marc_Anne_HR_Variability_MSA$Date_de_l_examen, 
+           Marc_Anne_HR_Variability_MSA$date_, 
+           units = "days") / 30.5
+)
+
+# Extract the year from Date_de_l_examen
+Marc_Anne_HR_Variability_MSA$Year_de_l_examen <- as.numeric(format(as.Date(Marc_Anne_HR_Variability_MSA$Date_de_l_examen), "%Y"))
+
+# Ensure AMS__011___Année_d_apparition_1er_symptome_maladie is numeric
+Marc_Anne_HR_Variability_MSA$Year_1st_symptom <- as.numeric(Marc_Anne_HR_Variability_MSA$AMS__011___Année_d_apparition_1er_symptome_maladie)
+
+# Ensure AMS__009_-__Année_diagnostic_AMS is numeric
+Marc_Anne_HR_Variability_MSA$Year_1st_dx <- as.numeric(Marc_Anne_HR_Variability_MSA$`AMS__009_-__Année_diagnostic_AMS`)
+
+
+# Calculate the difference
+Marc_Anne_HR_Variability_MSA$Year_1st_symptom <- Marc_Anne_HR_Variability_MSA$Year_de_l_examen - Marc_Anne_HR_Variability_MSA$Year_1st_symptom
+Marc_Anne_HR_Variability_MSA$Year_1st_dx <- Marc_Anne_HR_Variability_MSA$Year_de_l_examen - Marc_Anne_HR_Variability_MSA$Year_1st_dx
+
+
+Marc_Anne_HR_Variability_MSA <- Marc_Anne_HR_Variability_MSA %>% select(patid, Year_1st_dx,Year_1st_symptom, Followup_duration, cause)
+
+
+Marc_Anne_HR_Variability_MSA$Followup_duration <- -1* Marc_Anne_HR_Variability_MSA$Followup_duration
+
+Ewing <- Ewing %>% left_join(Marc_Anne_HR_Variability_MSA)
+
+Ewing <- Ewing %>% select(-patid)
+
+Ewing[] <- lapply(Ewing, as.numeric)
+
+Ewing <- Ewing %>%  mutate(cause=ifelse(is.na(cause),0,1))
+
+names(Ewing)
+
+
+# Ewing follow up
+
+target_column <- "Followup_duration"
+
+columns_to_compare <- c("Ewing_Valsalva_valeur_rapport_de_valsalva", "Ewing_respi_ample_valeur_(bpm)",
+                        "Ewing_rapport_30/15_valeur" , "Ewing_var_contract_iso_PAD_(_valeur_handgrip)",
+                        "Ewing_var_contract_iso_PAS","Ewing_var_orthost_tilt_PAS",
+                        "Ewing_var_orthost_tilt_PAD", "Ewing_var_orthost_stand_PAS",
+                        "Ewing_var_orthost_stand_PAD", "Ewing_Valsalva_score",
+                        "Ewing_respi_ample_score_(bpm)", "Ewing_rapport_30/15_score",
+                        "Ewing_var_contract_iso_score" , "Ewing_var_orthost_Tilt_score" ,
+                        "Ewing_total_score", "3-_Valsalva_-_diminution_PSA_systolique_phase_IIb_(mmHg)",
+                        "3-_Valsalva_-_augmentation_PSA_systolique_phase_IVb_(mmHg)")
+
+correlation_results <- list()
+
+for (col in columns_to_compare) {
+  # Calculate Spearman correlation while dropping NAs
+  correlation <- cor(Ewing[[target_column]], Ewing[[col]], method = "spearman", use = "complete.obs")
+  
+  # Store the result
+  correlation_results[[col]] <- correlation
+}
+
+# Print the correlation results
+print(correlation_results)
+
+
+# Ewing symptom duration
+
+target_column <- "Year_1st_symptom"
+
+columns_to_compare <- c("Ewing_Valsalva_valeur_rapport_de_valsalva", "Ewing_respi_ample_valeur_(bpm)",
+                        "Ewing_rapport_30/15_valeur" , "Ewing_var_contract_iso_PAD_(_valeur_handgrip)",
+                        "Ewing_var_contract_iso_PAS","Ewing_var_orthost_tilt_PAS",
+                        "Ewing_var_orthost_tilt_PAD", "Ewing_var_orthost_stand_PAS",
+                        "Ewing_var_orthost_stand_PAD", "Ewing_Valsalva_score",
+                        "Ewing_respi_ample_score_(bpm)", "Ewing_rapport_30/15_score",
+                        "Ewing_var_contract_iso_score" , "Ewing_var_orthost_Tilt_score" ,
+                        "Ewing_total_score", "3-_Valsalva_-_diminution_PSA_systolique_phase_IIb_(mmHg)",
+                        "3-_Valsalva_-_augmentation_PSA_systolique_phase_IVb_(mmHg)")
+
+correlation_results <- list()
+
+for (col in columns_to_compare) {
+  # Calculate Spearman correlation while dropping NAs
+  correlation <- cor(Ewing[[target_column]], Ewing[[col]], method = "spearman", use = "complete.obs")
+  
+  # Store the result
+  correlation_results[[col]] <- correlation
+}
+
+# Print the correlation results
+print(correlation_results)
+
+
+
+# Ewing diagnosis duration
+
+target_column <- "Year_1st_dx"
+
+columns_to_compare <- c("Ewing_Valsalva_valeur_rapport_de_valsalva", "Ewing_respi_ample_valeur_(bpm)",
+                        "Ewing_rapport_30/15_valeur" , "Ewing_var_contract_iso_PAD_(_valeur_handgrip)",
+                        "Ewing_var_contract_iso_PAS","Ewing_var_orthost_tilt_PAS",
+                        "Ewing_var_orthost_tilt_PAD", "Ewing_var_orthost_stand_PAS",
+                        "Ewing_var_orthost_stand_PAD", "Ewing_Valsalva_score",
+                        "Ewing_respi_ample_score_(bpm)", "Ewing_rapport_30/15_score",
+                        "Ewing_var_contract_iso_score" , "Ewing_var_orthost_Tilt_score" ,
+                        "Ewing_total_score", "3-_Valsalva_-_diminution_PSA_systolique_phase_IIb_(mmHg)",
+                        "3-_Valsalva_-_augmentation_PSA_systolique_phase_IVb_(mmHg)")
+
+correlation_results <- list()
+
+for (col in columns_to_compare) {
+  # Calculate Spearman correlation while dropping NAs
+  correlation <- cor(Ewing[[target_column]], Ewing[[col]], method = "spearman", use = "complete.obs")
+  
+  # Store the result
+  correlation_results[[col]] <- correlation
+}
+
+# Print the correlation results
+print(correlation_results)
+
+
+
+library(survival)
+library(survminer)
+
+
+sum(is.na(Ewing))
+
+test_cox <- Ewing %>% select(Followup_duration, cause, Ewing_total_score) %>% drop_na()
+
+
+cox_model <- coxph(Surv(Followup_duration , cause) ~ Ewing_total_score, data = test_cox)
+summary(cox_model)
+
+
+# Generate survival curve for a range of predictor values
+new_data <- data.frame(Ewing_total_score = seq(min(test_cox$Ewing_total_score), max(test_cox$Ewing_total_score), length.out = 5))
+surv_fit <- survfit(cox_model, newdata = new_data)
+
+# 600 600
+# Plot the survival curves
+ggsurvplot(surv_fit, data = test_cox, 
+           conf.int = TRUE,  # Show confidence intervals
+           ggtheme = theme_minimal(), 
+           legend.title = "Total Ewing Score ",
+           legend.labs = round(seq(min(test_cox$Ewing_total_score), 
+                                   max(test_cox$Ewing_total_score), length.out = 5), 2),
+           xlab = "Follow-up Time",
+           ylab = "Survival Probability",
+           palette = c("#4cc9f0", "#4361ee", "#3a0ca3", "#7209b7", "#f72585"))
+
+
+multivar <- Ewing %>% select(-Year_1st_dx, -Year_1st_symptom) %>% drop_na()
+
+names(multivar)
+
+multivar <- multivar %>%
+  mutate(across(`Ewing_Valsalva_valeur_rapport_de_valsalva`:`3-_Valsalva_-_augmentation_PSA_systolique_phase_IVb_(mmHg)` , scale)) 
+
+cox_model_multi <- coxph(Surv(Followup_duration, cause) ~ ., data = multivar)
+
+summary(cox_model_multi)
+
+
+
+cox_summary_scaled <- summary(cox_model_multi)
+HRs_scaled <- exp(cox_summary_scaled$coefficients[,2])
+lower_CI_scaled <- exp(cox_summary_scaled$conf.int[,3])
+upper_CI_scaled <- exp(cox_summary_scaled$conf.int[,4])
+
+forest_data_scaled <- data.frame(
+  Variable = rownames(cox_summary_scaled$coefficients),
+  HR = HRs_scaled,
+  lower = lower_CI_scaled,
+  upper = upper_CI_scaled
+)
+
+forest_data_scaled <- forest_data_scaled %>% drop_na()
+forest_data_scaled <- forest_data_scaled %>% arrange(HR)
+
+
+names(forest_data_scaled) 
+
+unique(forest_data_scaled$Variable)
+
+forest_data_scaled <- forest_data_scaled %>%
+  mutate(Variable=ifelse(Variable=="`Ewing_rapport_30/15_valeur`", "Ratio 30/15 value",
+                         ifelse(Variable=="`Ewing_respi_ample_valeur_(bpm)`", "Respiratoy Amplitude (bpm)",
+                                ifelse(Variable=="Ewing_var_orthost_tilt_PAS", "Orthostatic Tilt SBP",
+                                       ifelse(Variable=="Ewing_var_contract_iso_PAS", "Contraction Iso SBP",
+                                              ifelse(Variable=="`Ewing_rapport_30/15_score`", "Ratio 30/15 score",
+                                                     ifelse(Variable=="Ewing_var_orthost_Tilt_score", "Orthostatic Tilt score",
+                                                            ifelse(Variable=="`3-_Valsalva_-_diminution_PSA_systolique_phase_IIb_(mmHg)`", "Valsalva SBP Delta Phase IIb (mmHg)",
+                                                                   ifelse(Variable=="Ewing_var_orthost_tilt_PAD", "Orthostatic Tilt DBP",
+                                                                          ifelse(Variable=="Ewing_var_orthost_stand_PAS", "Orthostatic Stand SBP",
+                                                                                 ifelse(Variable=="Ewing_var_orthost_stand_PAD", "Orthostatic Stand DBP",
+                                                                                        ifelse(Variable=="`Ewing_respi_ample_score_(bpm)`", "Respiratory Amp Score (bpm",
+                                                                                               ifelse(Variable=="`3-_Valsalva_-_augmentation_PSA_systolique_phase_IVb_(mmHg)`", "Valsalva SBP Delta Phase IVb (mmHg)",
+                                                                                                      ifelse(Variable=="Ewing_var_contract_iso_score", "Contraction Iso score",
+                                                                                                             ifelse(Variable=="`Ewing_var_contract_iso_PAD_(_valeur_handgrip)`", "Contraction Iso DBP",
+                                                                                                                    ifelse(Variable=="Ewing_Valsalva_score", "Valsalva score",
+                                                                                                                           ifelse(Variable=="Ewing_Valsalva_valeur_rapport_de_valsalva", "Valsalva ratio", NA)))))))))))))))))
+
+ggplot(forest_data_scaled, aes(y = Variable, x = HR, xmin = lower, xmax = upper)) +
+  geom_pointrange() +
+  geom_vline(xintercept = 1, linetype = "dashed", color = "red") +
+  theme_minimal() +
+  labs(title = "Scaled Hazard Ratios of Ewing Score Subscores", x = "Hazard Ratio (per 1 SD increase)", y = "Subscores")
+
+# ---------
+
+# Heart rate variability metrics and UMSARS - Using Age and Gender ------------------
+
+Marc_Anne_HR_Variability_MSA <- read_xlsx(path="Marc_Anne_HR_Variability_MSA.xlsx", trim_ws = TRUE)
+
+names(Marc_Anne_HR_Variability_MSA)
+
+Marc_Anne_HR_Variability_MSA <- Marc_Anne_HR_Variability_MSA %>% mutate(cause=ifelse(cause=="Décès",1,0))
+
+# Convert the columns to Date format
+Marc_Anne_HR_Variability_MSA$Date_de_l_examen <- as.Date(Marc_Anne_HR_Variability_MSA$Date_de_l_examen)
+Marc_Anne_HR_Variability_MSA$date_ <- as.Date(Marc_Anne_HR_Variability_MSA$date_)
+
+# Calculate the difference in years
+Marc_Anne_HR_Variability_MSA$Followup_duration <- as.numeric(
+  difftime(Marc_Anne_HR_Variability_MSA$Date_de_l_examen, 
+           Marc_Anne_HR_Variability_MSA$date_, 
+           units = "days") / 365.25
+)
+
+
+
+names(Marc_Anne_HR_Variability_MSA)
+
+
+
+Marc_Anne_HR_Variability_MSA <- Marc_Anne_HR_Variability_MSA %>% 
+  select(patid, `ms/mmHg`:Hurst,  Score_UMSARS1, Score_UMSARS2, Followup_duration, cause, Sexe_, Age_lors_de_l_examen)
+
+Deltas_PAS_PAD <- fread("Deltas_PAS_PAD.txt")
+
+Marc_Anne_HR_Variability_MSA <- Marc_Anne_HR_Variability_MSA %>% left_join(Deltas_PAS_PAD)
+
+names(Marc_Anne_HR_Variability_MSA)
+
+Marc_Anne_HR_Variability_MSA <- Marc_Anne_HR_Variability_MSA %>% 
+  select(patid, Sexe_, Age_lors_de_l_examen, `ms/mmHg`:Hurst,  Score_UMSARS1, Score_UMSARS2) %>%
+  mutate(UMSARS=Score_UMSARS1+Score_UMSARS2) %>%
+  select(-c(Score_UMSARS1, Score_UMSARS2))
+
+
+Marc_Anne_HR_Variability_MSA <- Marc_Anne_HR_Variability_MSA %>% drop_na()
+Marc_Anne_HR_Variability_MSA <- Marc_Anne_HR_Variability_MSA %>% select(-patid)
+
+colnames(Marc_Anne_HR_Variability_MSA) = gsub("-", "_", colnames(Marc_Anne_HR_Variability_MSA))
+colnames(Marc_Anne_HR_Variability_MSA) = gsub("/", "_", colnames(Marc_Anne_HR_Variability_MSA))
+
+colnames(Marc_Anne_HR_Variability_MSA) = gsub("\\(", "_", colnames(Marc_Anne_HR_Variability_MSA))
+colnames(Marc_Anne_HR_Variability_MSA) = gsub("\\)", "_", colnames(Marc_Anne_HR_Variability_MSA))
+colnames(Marc_Anne_HR_Variability_MSA) = gsub("%", "perc", colnames(Marc_Anne_HR_Variability_MSA))
+colnames(Marc_Anne_HR_Variability_MSA) = gsub("²", "2", colnames(Marc_Anne_HR_Variability_MSA))
+colnames(Marc_Anne_HR_Variability_MSA) = gsub("1", "one", colnames(Marc_Anne_HR_Variability_MSA))
+colnames(Marc_Anne_HR_Variability_MSA) = gsub("2", "two", colnames(Marc_Anne_HR_Variability_MSA))
+
+
+library(leaps)
+library(glmnet)
+library(car)
+
+
+# Ensure predictors are scaled
+Marc_Anne_HR_Variability_MSA <- Marc_Anne_HR_Variability_MSA %>%
+  mutate(across(where(is.numeric), scale))
+
+
+
+#Best Subset Selection
+set.seed(1)
+regit_full <- regsubsets(UMSARS ~ ., data = Marc_Anne_HR_Variability_MSA, nvmax = 52, really.big=T)
+reg_summary <- summary(regit_full)
+
+
+ignore <- data.frame(reg_summary$which)
+
+fwrite(ignore, "ignore.csv")
+
+
+Best_Subset_Predictors <- fread("Best_Subset_Preds_HR_UMSARS_AgeGender.csv")
+
+names(Best_Subset_Predictors)
+
+light_blue = rgb(0/255, 135/255, 250/255)  # Light blue: RGB(0, 135, 250)
+light_pink = rgb(255/255, 0/255, 79/255)   # Light pink: RGB(255, 0, 79)
+
+Best_Subset_Predictors %>% gather(Var, Pres, `Gender`:`Hurst`) %>%
+  mutate(Pres=ifelse(Pres==1, "Yes", "No")) %>%
+  rename("Predictor_Included"="Pres") %>%
+  mutate(Predictor_Included=as.factor(Predictor_Included)) %>%
+  ggplot(aes(x=Vars , y=Var, fill = Predictor_Included)) + 
+  geom_tile(color = "snow", size = 0.1, show.legend = F) + 
+  scale_fill_manual( values= c("snow", light_pink) ) +
+  #scale_x_discrete(expand=c(0,0)) + 
+  scale_y_discrete(expand=c(0,0)) + 
+  coord_equal() + 
+  theme_minimal() +
+  # scale_x_continuous(breaks = seq(min(Best_Subset_Predictors$vars),max(Best_Subset_Predictors$vars),by=1)) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+  xlab("Number of Predictors") +ylab("Predictor Included (yes/no)")
+
+
+
+# Plot RSS, Adjusted R², Cp, and BIC
+
+# Define the colors for the alternating lines
+light_blue = rgb(0/255, 135/255, 250/255)  # Light blue: RGB(0, 135, 250)
+ight_pink = rgb(255/255, 0/255, 79/255)   # Light pink: RGB(255, 0, 79)
+
+# Set up the plot layout with 2 rows and 2 columns
+par(mfrow = c(2, 2))  # Arrange plots in a grid
+
+# Plot RSS with alternating colors and thicker lines
+plot(reg_summary$rss, xlab = "Number of Variables", ylab = "RSS", type = "l", lwd = 3, col = light_pink)
+# Plot Adjusted R² with alternating colors and thicker lines
+plot(reg_summary$adjr2, xlab = "Number of Variables", ylab = "Adjusted R²", type = "l", lwd = 3, col = light_blue)
+# Plot Cp with alternating colors and thicker lines
+plot(reg_summary$cp, xlab = "Number of Variables", ylab = "Cp", type = "l", lwd = 3, col = light_blue)
+# Plot BIC with alternating colors and thicker lines
+plot(reg_summary$bic, xlab = "Number of Variables", ylab = "BIC", type = "l", lwd = 3, col = light_pink)
+
+
+
+# Ensure predictors are scaled
+X <- model.matrix(UMSARS ~ ., data = Marc_Anne_HR_Variability_MSA)[, -1]  # Design matrix (exclude intercept)
+y <- Marc_Anne_HR_Variability_MSA$UMSARS  # Response variable
+
+# LASSO Regression (alpha = 1)
+set.seed(1)
+lasso_cv <- cv.glmnet(X, y, alpha = 1, standardize = TRUE, maxit = 1e6)
+
+# Best lambda
+lasso_lambda_min <- lasso_cv$lambda.min
+lasso_lambda_1se <- lasso_cv$lambda.1se
+
+# Plot LASSO cross-validation results
+plot(lasso_cv)
+title("LASSO Cross-Validation", line = 2.5)
+
+# Extract coefficients for the best lambda
+lasso_coeffs <- coef(lasso_cv, s = "lambda.min")
+print(lasso_coeffs)
+
+
+
+# Ridge Regression (alpha = 0)
+set.seed(1)
+ridge_cv <- cv.glmnet(X, y, alpha = 0, standardize = TRUE)
+
+# Best lambda
+ridge_lambda_min <- ridge_cv$lambda.min
+ridge_lambda_1se <- ridge_cv$lambda.1se
+
+# Plot Ridge cross-validation results
+plot(ridge_cv)
+title("Ridge Cross-Validation", line = 2.5)
+
+# Extract coefficients for the best lambda
+ridge_coeffs <- coef(ridge_cv, s = "lambda.min")
+print(ridge_coeffs)
+
+
+# Predict function for glmnet models
+lasso_predictions <- predict(lasso_cv, newx = X, s = "lambda.min")
+ridge_predictions <- predict(ridge_cv, newx = X, s = "lambda.min")
+
+cor(lasso_predictions, data.frame(y))
+cor(ridge_predictions, data.frame(y))
+
+
+# ------------------
+
+# Heart rate variability metrics & UMSARS & and Death - Age and Gender ------------------
+
+Marc_Anne_HR_Variability_MSA <- read_xlsx(path="Marc_Anne_HR_Variability_MSA.xlsx", trim_ws = TRUE)
+
+names(Marc_Anne_HR_Variability_MSA)
+
+Marc_Anne_HR_Variability_MSA <- Marc_Anne_HR_Variability_MSA %>% mutate(cause=ifelse(cause=="Décès",1,0))
+
+# Convert the columns to Date format
+Marc_Anne_HR_Variability_MSA$Date_de_l_examen <- as.Date(Marc_Anne_HR_Variability_MSA$Date_de_l_examen)
+Marc_Anne_HR_Variability_MSA$date_ <- as.Date(Marc_Anne_HR_Variability_MSA$date_)
+
+# Calculate the difference in years
+Marc_Anne_HR_Variability_MSA$Followup_duration <- as.numeric(
+  difftime(Marc_Anne_HR_Variability_MSA$Date_de_l_examen, 
+           Marc_Anne_HR_Variability_MSA$date_, 
+           units = "days") / 30.5
+)
+
+
+Marc_Anne_HR_Variability_MSA <- Marc_Anne_HR_Variability_MSA %>% 
+  select(patid, Age_lors_de_l_examen, Sexe_, `ms/mmHg`:Hurst, Score_UMSARS1, Score_UMSARS2, Followup_duration, cause)
+
+
+Marc_Anne_HR_Variability_MSA <- Marc_Anne_HR_Variability_MSA %>% 
+  mutate(UMSARS=Score_UMSARS1+Score_UMSARS2) %>%
+  select(-c(Score_UMSARS1, Score_UMSARS2))
+
+
+Marc_Anne_HR_Variability_MSA <- Marc_Anne_HR_Variability_MSA %>% drop_na()
+
+Marc_Anne_HR_Variability_MSA <- Marc_Anne_HR_Variability_MSA %>% mutate(cause=ifelse(is.na(cause),0,cause))
+
+Marc_Anne_HR_Variability_MSA <- Marc_Anne_HR_Variability_MSA %>% drop_na()
+Marc_Anne_HR_Variability_MSA <- Marc_Anne_HR_Variability_MSA %>% select(-patid)
+
+colnames(Marc_Anne_HR_Variability_MSA) = gsub("-", "_", colnames(Marc_Anne_HR_Variability_MSA))
+colnames(Marc_Anne_HR_Variability_MSA) = gsub("/", "_", colnames(Marc_Anne_HR_Variability_MSA))
+
+colnames(Marc_Anne_HR_Variability_MSA) = gsub("\\(", "_", colnames(Marc_Anne_HR_Variability_MSA))
+colnames(Marc_Anne_HR_Variability_MSA) = gsub("\\)", "_", colnames(Marc_Anne_HR_Variability_MSA))
+colnames(Marc_Anne_HR_Variability_MSA) = gsub("%", "perc", colnames(Marc_Anne_HR_Variability_MSA))
+colnames(Marc_Anne_HR_Variability_MSA) = gsub("²", "2", colnames(Marc_Anne_HR_Variability_MSA))
+colnames(Marc_Anne_HR_Variability_MSA) = gsub("1", "one", colnames(Marc_Anne_HR_Variability_MSA))
+colnames(Marc_Anne_HR_Variability_MSA) = gsub("2", "two", colnames(Marc_Anne_HR_Variability_MSA))
+
+Marc_Anne_HR_Variability_MSA$Followup_duration <- Marc_Anne_HR_Variability_MSA$Followup_duration * (-1)
+
+Marc_Anne_HR_Variability_MSA %>% group_by(cause) %>% summarise(mean=mean(UMSARS))
+
+cor(Marc_Anne_HR_Variability_MSA$UMSARS, Marc_Anne_HR_Variability_MSA$Followup_duration)
+
+Marc_Anne_HR_Variability_MSA <- Marc_Anne_HR_Variability_MSA %>% select(-cause)
+
+
+library(glmnet)
+library(caret)
+
+# Assume the data is loaded in the "data" variable
+# Extract relevant columns: HRV features (1:50), time-to-death, and UMSARS
+data_relevant <- Marc_Anne_HR_Variability_MSA
+
+# Standardize the HRV features
+data_standardized <- data_relevant
+data_standardized[, 1:52] <- scale(data_standardized[, 1:52])
+
+# Define time-to-death and response variable
+time_to_death <- data_standardized$Followup_duration
+umsars <- data_standardized$UMSARS
+hrv_features <- as.matrix(data_standardized[, 1:52])
+
+umsars_scaled <- scale(umsars)
+hrv_features_scaled <- hrv_features
+
+umsars_scaled <- data.frame(umsars_scaled)
+
+hrv_features_scaled <- data.frame(hrv_features_scaled)
+
+hrv_features_scaled
+
+hrv_features_scaled <- as.matrix(hrv_features_scaled)
+
+dim(hrv_features_scaled)
+
+
+
+
+X <- umsars_scaled %>% bind_cols(hrv_features_scaled)
+X <- as.matrix(X)
+
+
+# Fit LASSO model (alpha = 1 for LASSO)
+lasso_model <- cv.glmnet(X, time_to_death, alpha = 1)
+
+# Get the lambda that minimizes the cross-validation error for LASSO
+lasso_lambda_min <- lasso_model$lambda.min
+cat("Optimal lambda for LASSO: ", lasso_lambda_min, "\n")
+
+# Get the coefficients for the LASSO model at lambda.min
+lasso_coefficients <- coef(lasso_model, s = "lambda.min")
+cat("LASSO Coefficients:\n")
+print(lasso_coefficients)
+
+
+umsars_scaled               -6.05545355
+Age_lors_de_l_examen         .         
+Sexe_                        1.52250306
+ms_mmHg                      .         
+Mean_RR__ms_                 .         
+pNN50__perc_                 .         
+SDNN__ms_                    .         
+rMSSD__ms_                   .         
+Ptot__mstwo_                 .         
+VLF__mstwo_                  .         
+LF__mstwo_                   .         
+HF__mstwo_                   .         
+LF_HF                        .         
+pLFone__mstwo_               .         
+pLFtwo__mstwo_               .         
+pHFone__mstwo_               .         
+pHFtwo__mstwo_               .         
+IMAIone                      .         
+IMAItwo                      .         
+Triangular_index             .         
+TINN__ms_                    .         
+X__ms_                       .         
+Y__beats_                    .         
+M__ms_                       .         
+N__ms_                       .         
+Approximate_Entropy          .         
+Sample_Entropy               .         
+Shanon_Entropy__SE_          .         
+Conditional_Entropy__CE_     .         
+Corrected_CE__CCE_           .         
+Normalized_CCE__NCCE_        .         
+ρ                            .         
+Lempel_Ziv_Complexity__LZC_  0.09579476
+Centroid__ms_                .         
+SDone__ms_                   .         
+SDtwo__ms_                   .         
+SDone_SDtwo                  .         
+OV                           .         
+OVperc                       .         
+oneV                         .         
+oneVperc                     2.01683307
+twoV                         .         
+twoVperc                     .         
+twoUV                        .         
+twoUVperc                    .         
+MP                           .         
+MPperc                       .         
+αone__DFA_                   .         
+αtwo__DFA_                   .         
+H__DFA_                      .         
+H__Higuchi_                 -4.14127294
+H__Katz_                     .        
+
+# Fit Ridge model (alpha = 0 for Ridge)
+ridge_model <- cv.glmnet(X, time_to_death, alpha = 0)
+
+# Get the lambda that minimizes the cross-validation error for Ridge
+ridge_lambda_min <- ridge_model$lambda.min
+cat("Optimal lambda for Ridge: ", ridge_lambda_min, "\n")
+
+# Get the coefficients for the Ridge model at lambda.min
+ridge_coefficients <- coef(ridge_model, s = "lambda.min")
+cat("Ridge Coefficients:\n")
+print(ridge_coefficients)
+
+
+umsars_scaled               -2.45811509
+Age_lors_de_l_examen        -0.30883160
+Sexe_                        1.06741995
+ms_mmHg                     -0.31146621
+Mean_RR__ms_                -0.02448075
+pNN50__perc_                 0.17603434
+SDNN__ms_                   -0.08593827
+rMSSD__ms_                  -0.08809551
+Ptot__mstwo_                 0.09215145
+VLF__mstwo_                  0.23374736
+LF__mstwo_                   0.11056416
+HF__mstwo_                  -0.02648569
+LF_HF                       -0.14102463
+pLFone__mstwo_              -0.14430013
+pLFtwo__mstwo_               0.48949662
+pHFone__mstwo_               0.12373752
+pHFtwo__mstwo_              -0.07104622
+IMAIone                      0.02190874
+IMAItwo                     -0.13833737
+Triangular_index            -0.32851069
+TINN__ms_                   -0.14393011
+X__ms_                      -0.22865638
+Y__beats_                    0.12582658
+M__ms_                      -0.08486317
+N__ms_                      -0.04964498
+Approximate_Entropy          0.39344412
+Sample_Entropy               0.45270178
+Shanon_Entropy__SE_          0.01354668
+Conditional_Entropy__CE_     0.04876385
+Corrected_CE__CCE_           0.13185880
+Normalized_CCE__NCCE_        0.02855139
+ρ                           -0.02757862
+Lempel_Ziv_Complexity__LZC_  0.70672578
+Centroid__ms_               -0.03084279
+SDone__ms_                  -0.13074999
+SDtwo__ms_                  -0.16370709
+SDone_SDtwo                 -0.43879783
+OV                          -0.06572850
+OVperc                      -0.17063080
+oneV                         0.72165199
+oneVperc                     1.06755726
+twoV                         0.18035887
+twoVperc                     0.27945674
+twoUV                       -0.83707187
+twoUVperc                   -0.67625112
+MP                           0.38167295
+MPperc                       0.10616964
+αone__DFA_                   0.86268432
+αtwo__DFA_                  -0.30326189
+H__DFA_                     -0.54072289
+H__Higuchi_                 -1.17455979
+H__Katz_                    -0.22414361
+Hurst                        0.84007974
+
+
+umsars_only <- data.frame(time_to_death) %>% bind_cols(data.frame(umsars_scaled))
+
+lm_umsars <- lm(time_to_death ~ umsars_scaled, data=umsars_only)
+
+
+
+
+# Predict using LASSO model (with scaled HRV features)
+lasso_preds <- predict(lasso_model, newx = X, s = "lambda.min")
+
+# Predict using Ridge model (with scaled HRV features)
+ridge_preds <- predict(ridge_model, newx = X, s = "lambda.min")
+
+
+# Predict using the linear model
+lm_preds <- predict(lm_umsars, newdata = umsars_scaled)
+
+# Now let's evaluate the models by calculating the Mean Squared Error (MSE)
+mse_lasso <- mean((lasso_preds - time_to_death)^2)
+mse_ridge <- mean((ridge_preds - time_to_death)^2)
+mse_lm <- mean((lm_preds - time_to_death)^2)
+
+cat("MSE for LASSO Model: ", mse_lasso, "\n")
+cat("MSE for Ridge Model: ", mse_ridge, "\n")
+cat("MSE for Linear Model (UMSARS only): ", mse_lm, "\n")
+
+# Alternatively, you can compute R-squared for the models
+r_squared_lasso <- 1 - sum((lasso_preds - time_to_death)^2) / sum((time_to_death - mean(time_to_death))^2)
+r_squared_ridge <- 1 - sum((ridge_preds - time_to_death)^2) / sum((time_to_death - mean(time_to_death))^2)
+r_squared_lm <- 1 - sum((lm_preds - time_to_death)^2) / sum((time_to_death - mean(time_to_death))^2)
+
+cat("R-squared for LASSO Model: ", r_squared_lasso, "\n")
+cat("R-squared for Ridge Model: ", r_squared_ridge, "\n")
+cat("R-squared for Linear Model (UMSARS only): ", r_squared_lm, "\n")
+
+
+# > cat("R-squared for LASSO Model: ", r_squared_lasso, "\n")
+# R-squared for LASSO Model:  0.2548627 
+# > cat("R-squared for Ridge Model: ", r_squared_ridge, "\n")
+# R-squared for Ridge Model:  0.2120621 
+# > cat("R-squared for Linear Model (UMSARS only): ", r_squared_lm, "\n")
+# R-squared for Linear Model (UMSARS only):  0.1531957 
+
+
+
+ignore <- data.frame(X) %>% bind_cols(data.frame(time_to_death))
+
+set.seed(1)
+regit_full <- leaps::regsubsets(time_to_death ~ . , data=ignore, nvmax = 52, really.big=T)
+reg_summary <- summary(regit_full)
+
+ignore <- data.frame(reg_summary$which)
+
+fwrite(ignore, "ignore_2.csv")
+
+
+
+
+Best_Subset_Predictors <- fread("Best_Subset_Preds_Death_AgeGender.csv")
+
+names(Best_Subset_Predictors)
+
+light_blue = rgb(0/255, 135/255, 250/255)  # Light blue: RGB(0, 135, 250)
+light_pink = rgb(255/255, 0/255, 79/255)   # Light pink: RGB(255, 0, 79)
+
+Best_Subset_Predictors %>% gather(Var, Pres, UMSARS:`Hurst`) %>%
+  mutate(Pres=ifelse(Pres==1, "Yes", "No")) %>%
+  rename("Predictor_Included"="Pres") %>%
+  mutate(Predictor_Included=as.factor(Predictor_Included)) %>%
+  ggplot(aes(x=Vars , y=Var, fill = Predictor_Included)) + 
+  geom_tile(color = "snow", size = 0.1, show.legend = F) + 
+  scale_fill_manual( values= c("snow", light_pink) ) +
+  #scale_x_discrete(expand=c(0,0)) + 
+  scale_y_discrete(expand=c(0,0)) + 
+  coord_equal() + 
+  theme_minimal() +
+  # scale_x_continuous(breaks = seq(min(Best_Subset_Predictors$vars),max(Best_Subset_Predictors$vars),by=1)) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+  xlab("Number of Predictors") +ylab("Predictor Included (yes/no)")
+
+
+
+
+# Plot RSS, Adjusted R², Cp, and BIC
+
+# Define the colors for the alternating lines
+light_blue = rgb(0/255, 135/255, 250/255)  # Light blue: RGB(0, 135, 250)
+light_pink = rgb(255/255, 0/255, 79/255)   # Light pink: RGB(255, 0, 79)
+
+# Set up the plot layout with 2 rows and 2 columns
+par(mfrow = c(2, 2))  # Arrange plots in a grid
+
+# Plot RSS with alternating colors and thicker lines
+plot(reg_summary$rss, xlab = "Number of Variables", ylab = "RSS", type = "l", lwd = 3, col = light_pink)
+# # Plot Adjusted R² with alternating colors and thicker lines
+plot(reg_summary$adjr2, xlab = "Number of Variables", ylab = "Adjusted R²", type = "l", lwd = 3, col = light_blue)
+# # Plot Cp with alternating colors and thicker lines
+plot(reg_summary$cp, xlab = "Number of Variables", ylab = "Cp", type = "l", lwd = 3, col = light_blue)
+# # Plot BIC with alternating colors and thicker lines
+plot(reg_summary$bic, xlab = "Number of Variables", ylab = "BIC", type = "l", lwd = 3, col = light_pink)
+
+
+
+
+# -----------
