@@ -4378,10 +4378,11 @@ ggplot(forest_data_scaled, aes(y = Variable, x = HR, xmin = lower, xmax = upper)
 
 # Heart rate variability metrics and UMSARS - Using Age and Gender ------------------
 
+# Load data
 Marc_Anne_HR_Variability_MSA <- read_xlsx(path="Marc_Anne_HR_Variability_MSA.xlsx", trim_ws = TRUE)
 
-names(Marc_Anne_HR_Variability_MSA)
 
+# Encode cause of death
 Marc_Anne_HR_Variability_MSA <- Marc_Anne_HR_Variability_MSA %>% mutate(cause=ifelse(cause=="Décès",1,0))
 
 # Convert the columns to Date format
@@ -4396,20 +4397,15 @@ Marc_Anne_HR_Variability_MSA$Followup_duration <- as.numeric(
 )
 
 
-
-names(Marc_Anne_HR_Variability_MSA)
-
-
-
 Marc_Anne_HR_Variability_MSA <- Marc_Anne_HR_Variability_MSA %>% 
   select(patid, `ms/mmHg`:Hurst,  Score_UMSARS1, Score_UMSARS2, Followup_duration, cause, Sexe_, Age_lors_de_l_examen)
 
+# Join delta BP data
 Deltas_PAS_PAD <- fread("Deltas_PAS_PAD.txt")
 
 Marc_Anne_HR_Variability_MSA <- Marc_Anne_HR_Variability_MSA %>% left_join(Deltas_PAS_PAD)
 
-names(Marc_Anne_HR_Variability_MSA)
-
+# Prepare modeling dataset
 Marc_Anne_HR_Variability_MSA <- Marc_Anne_HR_Variability_MSA %>% 
   select(patid, Sexe_, Age_lors_de_l_examen, `ms/mmHg`:Hurst,  Score_UMSARS1, Score_UMSARS2) %>%
   mutate(UMSARS=Score_UMSARS1+Score_UMSARS2) %>%
@@ -4419,15 +4415,16 @@ Marc_Anne_HR_Variability_MSA <- Marc_Anne_HR_Variability_MSA %>%
 Marc_Anne_HR_Variability_MSA <- Marc_Anne_HR_Variability_MSA %>% drop_na()
 Marc_Anne_HR_Variability_MSA <- Marc_Anne_HR_Variability_MSA %>% select(-patid)
 
-colnames(Marc_Anne_HR_Variability_MSA) = gsub("-", "_", colnames(Marc_Anne_HR_Variability_MSA))
-colnames(Marc_Anne_HR_Variability_MSA) = gsub("/", "_", colnames(Marc_Anne_HR_Variability_MSA))
-
-colnames(Marc_Anne_HR_Variability_MSA) = gsub("\\(", "_", colnames(Marc_Anne_HR_Variability_MSA))
-colnames(Marc_Anne_HR_Variability_MSA) = gsub("\\)", "_", colnames(Marc_Anne_HR_Variability_MSA))
-colnames(Marc_Anne_HR_Variability_MSA) = gsub("%", "perc", colnames(Marc_Anne_HR_Variability_MSA))
-colnames(Marc_Anne_HR_Variability_MSA) = gsub("²", "2", colnames(Marc_Anne_HR_Variability_MSA))
-colnames(Marc_Anne_HR_Variability_MSA) = gsub("1", "one", colnames(Marc_Anne_HR_Variability_MSA))
-colnames(Marc_Anne_HR_Variability_MSA) = gsub("2", "two", colnames(Marc_Anne_HR_Variability_MSA))
+# Clean column names
+colnames(Marc_Anne_HR_Variability_MSA) <- colnames(Marc_Anne_HR_Variability_MSA) %>%
+  gsub("-", "_", .) %>%
+  gsub("/", "_", .) %>%
+  gsub("\\(", "_", .) %>%
+  gsub("\\)", "_", .) %>%
+  gsub("%", "perc", .) %>%
+  gsub("²", "2", .) %>%
+  gsub("1", "one", .) %>%
+  gsub("2", "two", .)
 
 
 library(leaps)
@@ -4446,15 +4443,11 @@ set.seed(1)
 regit_full <- regsubsets(UMSARS ~ ., data = Marc_Anne_HR_Variability_MSA, nvmax = 52, really.big=T)
 reg_summary <- summary(regit_full)
 
+selected_vars <- data.frame(reg_summary$which)
 
-ignore <- data.frame(reg_summary$which)
-
-fwrite(ignore, "ignore.csv")
-
+fwrite(ignore, "selected_vars.csv")
 
 Best_Subset_Predictors <- fread("Best_Subset_Preds_HR_UMSARS_AgeGender.csv")
-
-names(Best_Subset_Predictors)
 
 light_blue = rgb(0/255, 135/255, 250/255)  # Light blue: RGB(0, 135, 250)
 light_pink = rgb(255/255, 0/255, 79/255)   # Light pink: RGB(255, 0, 79)
@@ -4480,7 +4473,7 @@ Best_Subset_Predictors %>% gather(Var, Pres, `Gender`:`Hurst`) %>%
 
 # Define the colors for the alternating lines
 light_blue = rgb(0/255, 135/255, 250/255)  # Light blue: RGB(0, 135, 250)
-ight_pink = rgb(255/255, 0/255, 79/255)   # Light pink: RGB(255, 0, 79)
+light_pink = rgb(255/255, 0/255, 79/255)   # Light pink: RGB(255, 0, 79)
 
 # Set up the plot layout with 2 rows and 2 columns
 par(mfrow = c(2, 2))  # Arrange plots in a grid
