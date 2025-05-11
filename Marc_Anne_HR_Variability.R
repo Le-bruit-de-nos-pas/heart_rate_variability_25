@@ -4549,41 +4549,44 @@ cor(ridge_predictions, data.frame(y))
 
 Marc_Anne_HR_Variability_MSA <- read_xlsx(path="Marc_Anne_HR_Variability_MSA.xlsx", trim_ws = TRUE)
 
-names(Marc_Anne_HR_Variability_MSA)
-
+# Encode cause of death
 Marc_Anne_HR_Variability_MSA <- Marc_Anne_HR_Variability_MSA %>% mutate(cause=ifelse(cause=="Décès",1,0))
 
-# Convert the columns to Date format
+# Convert to Date
 Marc_Anne_HR_Variability_MSA$Date_de_l_examen <- as.Date(Marc_Anne_HR_Variability_MSA$Date_de_l_examen)
 Marc_Anne_HR_Variability_MSA$date_ <- as.Date(Marc_Anne_HR_Variability_MSA$date_)
 
-# Calculate the difference in years
+# Calculate follow-up duration in months (negative: past to future)
 Marc_Anne_HR_Variability_MSA$Followup_duration <- as.numeric(
   difftime(Marc_Anne_HR_Variability_MSA$Date_de_l_examen, 
            Marc_Anne_HR_Variability_MSA$date_, 
-           units = "days") / 30.5
+           units = "days") / 30.5 * (-1)
+)
+
+# Select and rename
+Marc_Anne_HR_Variability_MSA <- subset(
+  Marc_Anne_HR_Variability_MSA, 
+  select = c(patid, Age_lors_de_l_examen, Sexe_, `ms/mmHg`:Hurst, Score_UMSARS1, Score_UMSARS2, Followup_duration, cause)
 )
 
 
-Marc_Anne_HR_Variability_MSA <- Marc_Anne_HR_Variability_MSA %>% 
-  select(patid, Age_lors_de_l_examen, Sexe_, `ms/mmHg`:Hurst, Score_UMSARS1, Score_UMSARS2, Followup_duration, cause)
+# Compute UMSARS total and remove individual scores
+Marc_Anne_HR_Variability_MSA$UMSARS <- Marc_Anne_HR_Variability_MSA$Score_UMSARS1 + Marc_Anne_HR_Variability_MSA$Score_UMSARS2
+Marc_Anne_HR_Variability_MSA$Score_UMSARS1 <- NULL
+Marc_Anne_HR_Variability_MSA$Score_UMSARS2 <- NULL
 
+# Drop missing values
+Marc_Anne_HR_Variability_MSA <- na.omit(Marc_Anne_HR_Variability_MSA)
 
-Marc_Anne_HR_Variability_MSA <- Marc_Anne_HR_Variability_MSA %>% 
-  mutate(UMSARS=Score_UMSARS1+Score_UMSARS2) %>%
-  select(-c(Score_UMSARS1, Score_UMSARS2))
+# Drop ID column (if not needed for modeling)
+Marc_Anne_HR_Variability_MSA$patid <- NULL
 
+# Check group summary
+aggregate(UMSARS ~ cause, data = Marc_Anne_HR_Variability_MSA, mean)
 
-Marc_Anne_HR_Variability_MSA <- Marc_Anne_HR_Variability_MSA %>% drop_na()
-
-Marc_Anne_HR_Variability_MSA <- Marc_Anne_HR_Variability_MSA %>% mutate(cause=ifelse(is.na(cause),0,cause))
-
-Marc_Anne_HR_Variability_MSA <- Marc_Anne_HR_Variability_MSA %>% drop_na()
-Marc_Anne_HR_Variability_MSA <- Marc_Anne_HR_Variability_MSA %>% select(-patid)
-
+# Remove special characters from variable names
 colnames(Marc_Anne_HR_Variability_MSA) = gsub("-", "_", colnames(Marc_Anne_HR_Variability_MSA))
 colnames(Marc_Anne_HR_Variability_MSA) = gsub("/", "_", colnames(Marc_Anne_HR_Variability_MSA))
-
 colnames(Marc_Anne_HR_Variability_MSA) = gsub("\\(", "_", colnames(Marc_Anne_HR_Variability_MSA))
 colnames(Marc_Anne_HR_Variability_MSA) = gsub("\\)", "_", colnames(Marc_Anne_HR_Variability_MSA))
 colnames(Marc_Anne_HR_Variability_MSA) = gsub("%", "perc", colnames(Marc_Anne_HR_Variability_MSA))
@@ -4591,19 +4594,16 @@ colnames(Marc_Anne_HR_Variability_MSA) = gsub("²", "2", colnames(Marc_Anne_HR_V
 colnames(Marc_Anne_HR_Variability_MSA) = gsub("1", "one", colnames(Marc_Anne_HR_Variability_MSA))
 colnames(Marc_Anne_HR_Variability_MSA) = gsub("2", "two", colnames(Marc_Anne_HR_Variability_MSA))
 
-Marc_Anne_HR_Variability_MSA$Followup_duration <- Marc_Anne_HR_Variability_MSA$Followup_duration * (-1)
-
-Marc_Anne_HR_Variability_MSA %>% group_by(cause) %>% summarise(mean=mean(UMSARS))
-
+# Check correlation
 cor(Marc_Anne_HR_Variability_MSA$UMSARS, Marc_Anne_HR_Variability_MSA$Followup_duration)
 
+# Remove cause (death yes vs no)
 Marc_Anne_HR_Variability_MSA <- Marc_Anne_HR_Variability_MSA %>% select(-cause)
 
-
+# Prepare modeling data
 library(glmnet)
 library(caret)
 
-# Assume the data is loaded in the "data" variable
 # Extract relevant columns: HRV features (1:50), time-to-death, and UMSARS
 data_relevant <- Marc_Anne_HR_Variability_MSA
 
@@ -4623,17 +4623,12 @@ umsars_scaled <- data.frame(umsars_scaled)
 
 hrv_features_scaled <- data.frame(hrv_features_scaled)
 
-hrv_features_scaled
-
 hrv_features_scaled <- as.matrix(hrv_features_scaled)
-
-dim(hrv_features_scaled)
-
-
-
 
 X <- umsars_scaled %>% bind_cols(hrv_features_scaled)
 X <- as.matrix(X)
+
+
 
 
 # Fit LASSO model (alpha = 1 for LASSO)
@@ -4649,58 +4644,7 @@ cat("LASSO Coefficients:\n")
 print(lasso_coefficients)
 
 
-umsars_scaled               -6.05545355
-Age_lors_de_l_examen         .         
-Sexe_                        1.52250306
-ms_mmHg                      .         
-Mean_RR__ms_                 .         
-pNN50__perc_                 .         
-SDNN__ms_                    .         
-rMSSD__ms_                   .         
-Ptot__mstwo_                 .         
-VLF__mstwo_                  .         
-LF__mstwo_                   .         
-HF__mstwo_                   .         
-LF_HF                        .         
-pLFone__mstwo_               .         
-pLFtwo__mstwo_               .         
-pHFone__mstwo_               .         
-pHFtwo__mstwo_               .         
-IMAIone                      .         
-IMAItwo                      .         
-Triangular_index             .         
-TINN__ms_                    .         
-X__ms_                       .         
-Y__beats_                    .         
-M__ms_                       .         
-N__ms_                       .         
-Approximate_Entropy          .         
-Sample_Entropy               .         
-Shanon_Entropy__SE_          .         
-Conditional_Entropy__CE_     .         
-Corrected_CE__CCE_           .         
-Normalized_CCE__NCCE_        .         
-ρ                            .         
-Lempel_Ziv_Complexity__LZC_  0.09579476
-Centroid__ms_                .         
-SDone__ms_                   .         
-SDtwo__ms_                   .         
-SDone_SDtwo                  .         
-OV                           .         
-OVperc                       .         
-oneV                         .         
-oneVperc                     2.01683307
-twoV                         .         
-twoVperc                     .         
-twoUV                        .         
-twoUVperc                    .         
-MP                           .         
-MPperc                       .         
-αone__DFA_                   .         
-αtwo__DFA_                   .         
-H__DFA_                      .         
-H__Higuchi_                 -4.14127294
-H__Katz_                     .        
+
 
 # Fit Ridge model (alpha = 0 for Ridge)
 ridge_model <- cv.glmnet(X, time_to_death, alpha = 0)
@@ -4715,64 +4659,12 @@ cat("Ridge Coefficients:\n")
 print(ridge_coefficients)
 
 
-umsars_scaled               -2.45811509
-Age_lors_de_l_examen        -0.30883160
-Sexe_                        1.06741995
-ms_mmHg                     -0.31146621
-Mean_RR__ms_                -0.02448075
-pNN50__perc_                 0.17603434
-SDNN__ms_                   -0.08593827
-rMSSD__ms_                  -0.08809551
-Ptot__mstwo_                 0.09215145
-VLF__mstwo_                  0.23374736
-LF__mstwo_                   0.11056416
-HF__mstwo_                  -0.02648569
-LF_HF                       -0.14102463
-pLFone__mstwo_              -0.14430013
-pLFtwo__mstwo_               0.48949662
-pHFone__mstwo_               0.12373752
-pHFtwo__mstwo_              -0.07104622
-IMAIone                      0.02190874
-IMAItwo                     -0.13833737
-Triangular_index            -0.32851069
-TINN__ms_                   -0.14393011
-X__ms_                      -0.22865638
-Y__beats_                    0.12582658
-M__ms_                      -0.08486317
-N__ms_                      -0.04964498
-Approximate_Entropy          0.39344412
-Sample_Entropy               0.45270178
-Shanon_Entropy__SE_          0.01354668
-Conditional_Entropy__CE_     0.04876385
-Corrected_CE__CCE_           0.13185880
-Normalized_CCE__NCCE_        0.02855139
-ρ                           -0.02757862
-Lempel_Ziv_Complexity__LZC_  0.70672578
-Centroid__ms_               -0.03084279
-SDone__ms_                  -0.13074999
-SDtwo__ms_                  -0.16370709
-SDone_SDtwo                 -0.43879783
-OV                          -0.06572850
-OVperc                      -0.17063080
-oneV                         0.72165199
-oneVperc                     1.06755726
-twoV                         0.18035887
-twoVperc                     0.27945674
-twoUV                       -0.83707187
-twoUVperc                   -0.67625112
-MP                           0.38167295
-MPperc                       0.10616964
-αone__DFA_                   0.86268432
-αtwo__DFA_                  -0.30326189
-H__DFA_                     -0.54072289
-H__Higuchi_                 -1.17455979
-H__Katz_                    -0.22414361
-Hurst                        0.84007974
-
-
+# Linear model (UMSARS only)
 umsars_only <- data.frame(time_to_death) %>% bind_cols(data.frame(umsars_scaled))
 
 lm_umsars <- lm(time_to_death ~ umsars_scaled, data=umsars_only)
+
+
 
 
 
@@ -4782,7 +4674,6 @@ lasso_preds <- predict(lasso_model, newx = X, s = "lambda.min")
 
 # Predict using Ridge model (with scaled HRV features)
 ridge_preds <- predict(ridge_model, newx = X, s = "lambda.min")
-
 
 # Predict using the linear model
 lm_preds <- predict(lm_umsars, newdata = umsars_scaled)
@@ -4815,18 +4706,20 @@ cat("R-squared for Linear Model (UMSARS only): ", r_squared_lm, "\n")
 
 
 
-ignore <- data.frame(X) %>% bind_cols(data.frame(time_to_death))
+# Best subset selection
+subset_data  <- data.frame(X) %>% bind_cols(data.frame(time_to_death))
 
 set.seed(1)
-regit_full <- leaps::regsubsets(time_to_death ~ . , data=ignore, nvmax = 52, really.big=T)
+regit_full <- leaps::regsubsets(time_to_death ~ . , data=subset_data , nvmax = 52, really.big=T)
 reg_summary <- summary(regit_full)
 
-ignore <- data.frame(reg_summary$which)
+selected_vars <- data.frame(reg_summary$which)
 
-fwrite(ignore, "ignore_2.csv")
+fwrite(selected_vars, "selected_vars.csv")
 
 
 
+# Visualization of subset selection
 
 Best_Subset_Predictors <- fread("Best_Subset_Preds_Death_AgeGender.csv")
 
